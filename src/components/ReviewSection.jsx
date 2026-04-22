@@ -1,19 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 
-function ReviewSection({ intro, reviews, onCreateReview }) {
+function ReviewSection({ intro, publicReviews, onCreateReview }) {
   const [stars, setStars] = useState(0)
   const [comment, setComment] = useState('')
   const [feedback, setFeedback] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const publicReviews = useMemo(
-    () =>
-      reviews
-        .filter((review) => review.status === 'approved')
-        .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt)),
-    [reviews],
-  )
-
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
 
     if (!stars) {
@@ -28,19 +21,28 @@ function ReviewSection({ intro, reviews, onCreateReview }) {
 
     const nextStatus = stars <= 3 ? 'private' : 'pending'
 
-    onCreateReview({
-      stars,
-      comment: comment.trim(),
-      status: nextStatus,
-    })
+    setIsSubmitting(true)
 
-    setFeedback(
-      nextStatus === 'private'
-        ? 'Obrigado pelo retorno. Sua avaliação foi registrada.'
-        : 'Obrigado pela avaliação. Seu comentário foi enviado para análise antes da publicação.',
-    )
-    setStars(0)
-    setComment('')
+    try {
+      await onCreateReview({
+        stars,
+        comment: comment.trim(),
+        status: nextStatus,
+      })
+
+      setFeedback(
+        nextStatus === 'private'
+          ? 'Obrigado pelo retorno. Sua avaliação foi registrada.'
+          : 'Obrigado pela avaliação. Seu comentário foi enviado para análise antes da publicação.',
+      )
+      setStars(0)
+      setComment('')
+    } catch (error) {
+      console.error('Erro ao enviar avaliação', error)
+      setFeedback('Não foi possível enviar sua avaliação agora. Tente novamente em instantes.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -62,6 +64,7 @@ function ReviewSection({ intro, reviews, onCreateReview }) {
                     key={value}
                     type="button"
                     className={value <= stars ? 'is-active' : ''}
+                    disabled={isSubmitting}
                     aria-label={`${value} estrela${value > 1 ? 's' : ''}`}
                     onClick={() => setStars(value)}
                   >
@@ -78,14 +81,15 @@ function ReviewSection({ intro, reviews, onCreateReview }) {
               <textarea
                 id="review-comment"
                 rows="5"
+                disabled={isSubmitting}
                 placeholder="Descreva sua experiência com o serviço."
                 value={comment}
                 onChange={(event) => setComment(event.target.value)}
               />
             </div>
 
-            <button type="submit" className="button button--primary button--full">
-              3. Enviar avaliação
+            <button type="submit" className="button button--primary button--full" disabled={isSubmitting}>
+              {isSubmitting ? 'Enviando...' : '3. Enviar avaliação'}
             </button>
 
             {feedback ? <p className="form-feedback">{feedback}</p> : null}

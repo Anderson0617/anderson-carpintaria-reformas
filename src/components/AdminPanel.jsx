@@ -33,22 +33,22 @@ function getByPath(source, path) {
   return path.split('.').reduce((accumulator, key) => accumulator[key], source)
 }
 
-function ReviewActions({ review, onStatusChange, onDelete }) {
+function ReviewActions({ review, onStatusChange, onDelete, disabled }) {
   return (
     <div className="admin-review-actions">
-      <button type="button" onClick={() => onStatusChange(review.id, 'approved')}>
+      <button type="button" disabled={disabled} onClick={() => onStatusChange(review.id, 'approved')}>
         Mandar para público
       </button>
-      <button type="button" onClick={() => onStatusChange(review.id, 'pending')}>
+      <button type="button" disabled={disabled} onClick={() => onStatusChange(review.id, 'pending')}>
         Deixar pendente
       </button>
-      <button type="button" onClick={() => onStatusChange(review.id, 'hidden')}>
+      <button type="button" disabled={disabled} onClick={() => onStatusChange(review.id, 'hidden')}>
         Ocultar
       </button>
-      <button type="button" onClick={() => onStatusChange(review.id, 'private')}>
+      <button type="button" disabled={disabled} onClick={() => onStatusChange(review.id, 'private')}>
         Privado
       </button>
-      <button type="button" className="is-danger" onClick={() => onDelete(review.id)}>
+      <button type="button" className="is-danger" disabled={disabled} onClick={() => onDelete(review.id)}>
         Excluir
       </button>
     </div>
@@ -115,6 +115,8 @@ function ExtraPhotoManager({ title, items, category, onAdd, onUpdate, onDelete }
 function AdminPanel({
   draftContent,
   reviews,
+  reviewsLoading,
+  reviewActionPending,
   onClose,
   onTextChange,
   onMediaReplace,
@@ -237,7 +239,11 @@ function AdminPanel({
               <span className="panel__label">Avaliações</span>
               <h3>Controle de publicação e privado</h3>
             </div>
-            <select value={filter} onChange={(event) => setFilter(event.target.value)}>
+            <select
+              value={filter}
+              disabled={reviewsLoading || reviewActionPending}
+              onChange={(event) => setFilter(event.target.value)}
+            >
               <option value="all">Todas</option>
               <option value="approved">Aprovadas</option>
               <option value="pending">Pendentes</option>
@@ -251,7 +257,9 @@ function AdminPanel({
           </div>
 
           <div className="admin-review-list">
-            {filteredReviews.length ? (
+            {reviewsLoading && !filteredReviews.length ? (
+              <p className="admin-empty">Carregando avaliações do Supabase...</p>
+            ) : filteredReviews.length ? (
               filteredReviews.map((review) => (
                 <article className="admin-review-card" key={review.id}>
                   <div className="admin-review-card__top">
@@ -262,6 +270,7 @@ function AdminPanel({
                   <p>{review.comment}</p>
                   <ReviewActions
                     review={review}
+                    disabled={reviewActionPending}
                     onStatusChange={onReviewStatusChange}
                     onDelete={onReviewDelete}
                   />

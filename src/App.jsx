@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import AdminPanel, { updateByPath } from './components/AdminPanel'
 import Carousel from './components/Carousel'
 import ReviewSection from './components/ReviewSection'
@@ -6,16 +6,24 @@ import {
   SITE_PASSWORD,
   defaultDraftContent,
   defaultPublishedContent,
+  defaultPublishedReviews,
   defaultReviews,
   fixedGallerySections,
   serviceItems,
 } from './data/siteData'
+import {
+  createReview as createSupabaseReview,
+  deleteReview as deleteSupabaseReview,
+  listAdminReviews,
+  listPublicReviews,
+  updateReviewStatus as updateSupabaseReviewStatus,
+} from './lib/reviews'
 import { loadState, saveState } from './lib/storage'
+import { isSupabaseConfigured } from './lib/supabase'
 
 const initialState = {
   draftContent: defaultDraftContent,
   publishedContent: defaultPublishedContent,
-  reviews: defaultReviews,
 }
 
 function SectionDivider({ image, position = 'center' }) {
@@ -71,18 +79,29 @@ function ExtraGallery({ title, photos }) {
 
 function App() {
   const [siteState, setSiteState] = useState(() => loadState(initialState))
+  const [reviews, setReviews] = useState(() =>
+    isSupabaseConfigured || !import.meta.env.DEV ? [] : defaultReviews,
+  )
+  const [publicReviews, setPublicReviews] = useState(() =>
+    isSupabaseConfigured || !import.meta.env.DEV ? [] : defaultPublishedReviews,
+  )
   const [adminOpen, setAdminOpen] = useState(false)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const [passwordValue, setPasswordValue] = useState('')
   const [passwordError, setPasswordError] = useState('')
   const [publishMessage, setPublishMessage] = useState('')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [adminReviewsLoading, setAdminReviewsLoading] = useState(false)
+  const [reviewMutationPending, setReviewMutationPending] = useState(false)
   const mobileMenuRef = useRef(null)
   const serviceGridRef = useRef(null)
+  const publishTimeoutRef = useRef(null)
 
   useEffect(() => {
     saveState(siteState)
   }, [siteState])
+
+  useEffect(() => () => window.clearTimeout(publishTimeoutRef.current), [])
 
   useEffect(() => {
     if (!mobileMenuOpen) {
@@ -151,10 +170,27 @@ function App() {
     }
   }, [])
 
-  const publicReviewsCount = useMemo(
-    () => siteState.reviews.filter((review) => review.status === 'approved').length,
-    [siteState.reviews],
-  )
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      return
+    }
+
+    refreshPublicReviews({ silent: true })
+  }, [])
+
+  function showToast(message) {
+    setPublishMessage(message)
+    window.clearTimeout(publishTimeoutRef.current)
+    publishTimeoutRef.current = window.setTimeout(() => setPublishMessage(''), 2600)
+  }
+
+  function getReviewErrorMessage(error, fallbackMessage) {
+    if (error instanceof Error && error.message.includes('Supabase não configurado')) {
+      return error.message
+    }
+
+    return fallbackMessage
+  }
 
   function getWhatsappLink(phone) {
     const digits = phone.replace(/\D/g, '')
@@ -162,21 +198,52 @@ function App() {
     return `https://wa.me/${withCountryCode}`
   }
 
-  function handleCreateReview(review) {
-    setSiteState((current) => ({
-      ...current,
-      reviews: [
-        ...current.reviews,
-        {
-          id: crypto.randomUUID(),
-          createdAt: new Date().toISOString(),
-          ...review,
-        },
-      ],
-    }))
+  async function refreshPublicReviews({ silent = false } = {}) {
+    try {
+      const nextReviews = await listPublicReviews()
+      setPublicReviews(nextReviews)
+      return nextReviews
+    } catch (error) {
+      console.error('Erro ao carregar avaliações públicas', error)
+      if (!silent) {
+        showToast(getReviewErrorMessage(error, 'Não foi possível carregar as avaliações públicas.'))
+      }
+      return null
+    }
   }
 
-  function handlePasswordSubmit(event) {
+  async function refreshAdminReviews({ silent = false } = {}) {
+    setAdminReviewsLoading(true)
+
+    try {
+      const nextReviews = await listAdminReviews(SITE_PASSWORD)
+      setReviews(nextReviews)
+      return nextReviews
+    } catch (error) {
+      console.error('Erro ao carregar avaliações do painel', error)
+      if (!silent) {
+        showToast(getReviewErrorMessage(error, 'Não foi possível carregar as avaliações do ADM.'))
+      }
+      return null
+    } finally {
+      setAdminReviewsLoading(false)
+    }
+  }
+
+  async function handleCreateReview(review) {
+    try {
+      await createSupabaseReview(review)
+
+      if (adminOpen) {
+        await refreshAdminReviews({ silent: true })
+      }
+    } catch (error) {
+      console.error('Erro ao enviar avaliação', error)
+      throw error
+    }
+  }
+
+  async function handlePasswordSubmit(event) {
     event.preventDefault()
 
     if (passwordValue === SITE_PASSWORD) {
@@ -184,6 +251,7 @@ function App() {
       setPasswordModalOpen(false)
       setPasswordValue('')
       setPasswordError('')
+      await refreshAdminReviews()
       return
     }
 
@@ -218,22 +286,35 @@ function App() {
       ...current,
       publishedContent: structuredClone(current.draftContent),
     }))
-    setPublishMessage('Alterações publicadas na página pública.')
-    window.setTimeout(() => setPublishMessage(''), 2600)
+    showToast('Alterações publicadas na página pública.')
   }
 
-  function handleReviewStatusChange(id, status) {
-    setSiteState((current) => ({
-      ...current,
-      reviews: current.reviews.map((review) => (review.id === id ? { ...review, status } : review)),
-    }))
+  async function handleReviewStatusChange(id, status) {
+    setReviewMutationPending(true)
+
+    try {
+      await updateSupabaseReviewStatus(id, status, SITE_PASSWORD)
+      await Promise.all([refreshAdminReviews({ silent: true }), refreshPublicReviews({ silent: true })])
+    } catch (error) {
+      console.error('Erro ao atualizar avaliação', error)
+      showToast(getReviewErrorMessage(error, 'Não foi possível atualizar a avaliação.'))
+    } finally {
+      setReviewMutationPending(false)
+    }
   }
 
-  function handleReviewDelete(id) {
-    setSiteState((current) => ({
-      ...current,
-      reviews: current.reviews.filter((review) => review.id !== id),
-    }))
+  async function handleReviewDelete(id) {
+    setReviewMutationPending(true)
+
+    try {
+      await deleteSupabaseReview(id, SITE_PASSWORD)
+      await Promise.all([refreshAdminReviews({ silent: true }), refreshPublicReviews({ silent: true })])
+    } catch (error) {
+      console.error('Erro ao excluir avaliação', error)
+      showToast(getReviewErrorMessage(error, 'Não foi possível excluir a avaliação.'))
+    } finally {
+      setReviewMutationPending(false)
+    }
   }
 
   function handleAddExtraPhotos(category, items) {
@@ -484,7 +565,11 @@ function App() {
             </div>
           </section>
 
-          <ReviewSection intro={content.reviewsIntro} reviews={siteState.reviews} onCreateReview={handleCreateReview} />
+          <ReviewSection
+            intro={content.reviewsIntro}
+            publicReviews={publicReviews}
+            onCreateReview={handleCreateReview}
+          />
         </main>
 
         <footer className="footer section" id="contato">
@@ -540,7 +625,9 @@ function App() {
       {adminOpen ? (
         <AdminPanel
           draftContent={siteState.draftContent}
-          reviews={siteState.reviews}
+          reviews={reviews}
+          reviewsLoading={adminReviewsLoading}
+          reviewActionPending={reviewMutationPending}
           onClose={() => setAdminOpen(false)}
           onTextChange={handleTextChange}
           onMediaReplace={handleMediaReplace}
