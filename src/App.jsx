@@ -17,6 +17,15 @@ import {
   listPublicReviews,
   updateReviewStatus as updateSupabaseReviewStatus,
 } from './lib/reviews'
+import {
+  deleteGalleryEntry as deleteSupabaseGalleryEntry,
+  groupGalleryEntries,
+  listAdminGalleryEntries,
+  listPublicGalleryEntries,
+  publishGalleryEntries as publishSupabaseGalleryEntries,
+  updateGalleryEntryDescription,
+  uploadGalleryEntry,
+} from './lib/gallery'
 import { loadState, saveState } from './lib/storage'
 import { isSupabaseConfigured } from './lib/supabase'
 
@@ -94,6 +103,10 @@ function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [adminReviewsLoading, setAdminReviewsLoading] = useState(false)
   const [reviewMutationPending, setReviewMutationPending] = useState(false)
+  const [galleryEntries, setGalleryEntries] = useState(() => [])
+  const [publicGalleryEntries, setPublicGalleryEntries] = useState(() => [])
+  const [galleryLoading, setGalleryLoading] = useState(false)
+  const [galleryMutationPending, setGalleryMutationPending] = useState(false)
   const mobileMenuRef = useRef(null)
   const serviceGridRef = useRef(null)
   const publishTimeoutRef = useRef(null)
@@ -179,6 +192,14 @@ function App() {
     refreshPublicReviews({ silent: true })
   }, [])
 
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      return
+    }
+
+    refreshPublicGalleryEntries({ silent: true })
+  }, [])
+
   function showToast(message) {
     setPublishMessage(message)
     window.clearTimeout(publishTimeoutRef.current)
@@ -231,6 +252,38 @@ function App() {
     }
   }
 
+  async function refreshPublicGalleryEntries({ silent = false } = {}) {
+    try {
+      const nextEntries = await listPublicGalleryEntries()
+      setPublicGalleryEntries(nextEntries)
+      return nextEntries
+    } catch (error) {
+      console.error('Erro ao carregar fotos públicas', error)
+      if (!silent) {
+        showToast(getReviewErrorMessage(error, 'Não foi possível carregar as fotos publicadas.'))
+      }
+      return null
+    }
+  }
+
+  async function refreshAdminGalleryEntries({ silent = false } = {}) {
+    setGalleryLoading(true)
+
+    try {
+      const nextEntries = await listAdminGalleryEntries(SITE_PASSWORD)
+      setGalleryEntries(nextEntries)
+      return nextEntries
+    } catch (error) {
+      console.error('Erro ao carregar fotos do painel', error)
+      if (!silent) {
+        showToast(getReviewErrorMessage(error, 'Não foi possível carregar as fotos do ADM.'))
+      }
+      return null
+    } finally {
+      setGalleryLoading(false)
+    }
+  }
+
   async function handleCreateReview(review) {
     try {
       await createSupabaseReview(review)
@@ -252,7 +305,7 @@ function App() {
       setPasswordModalOpen(false)
       setPasswordValue('')
       setPasswordError('')
-      await refreshAdminReviews()
+      await Promise.all([refreshAdminReviews(), refreshAdminGalleryEntries()])
       return
     }
 
@@ -282,12 +335,28 @@ function App() {
     })
   }
 
-  function handlePublish() {
-    setSiteState((current) => ({
-      ...current,
-      publishedContent: structuredClone(current.draftContent),
-    }))
-    showToast('Alterações publicadas na página pública.')
+  async function handlePublish() {
+    try {
+      if (isSupabaseConfigured) {
+        setGalleryMutationPending(true)
+        await publishSupabaseGalleryEntries(SITE_PASSWORD)
+        await Promise.all([
+          refreshAdminGalleryEntries({ silent: true }),
+          refreshPublicGalleryEntries({ silent: true }),
+        ])
+      }
+
+      setSiteState((current) => ({
+        ...current,
+        publishedContent: structuredClone(current.draftContent),
+      }))
+      showToast('Alterações publicadas na página pública.')
+    } catch (error) {
+      console.error('Erro ao publicar alterações', error)
+      showToast(getReviewErrorMessage(error, 'Não foi possível publicar as alterações.'))
+    } finally {
+      setGalleryMutationPending(false)
+    }
   }
 
   async function handleReviewStatusChange(id, status) {
@@ -318,48 +387,84 @@ function App() {
     }
   }
 
-  function handleAddExtraPhotos(category, items) {
-    setSiteState((current) => ({
-      ...current,
-      draftContent: {
-        ...current.draftContent,
-        extraPhotos: {
-          ...current.draftContent.extraPhotos,
-          [category]: [...current.draftContent.extraPhotos[category], ...items],
-        },
-      },
-    }))
+  async function handleAddExtraPhotos(category, files) {
+    if (!isSupabaseConfigured) {
+      return
+    }
+
+    setGalleryMutationPending(true)
+
+    try {
+      await Promise.all(
+        files.map((file) =>
+          uploadGalleryEntry({
+            file,
+            category,
+            adminPassword: SITE_PASSWORD,
+          }),
+        ),
+      )
+      await refreshAdminGalleryEntries({ silent: true })
+    } catch (error) {
+      console.error('Erro ao subir novas fotos', error)
+      showToast(getReviewErrorMessage(error, 'Não foi possível subir as novas fotos.'))
+    } finally {
+      setGalleryMutationPending(false)
+    }
   }
 
-  function handleUpdateExtraPhoto(category, id, description) {
-    setSiteState((current) => ({
-      ...current,
-      draftContent: {
-        ...current.draftContent,
-        extraPhotos: {
-          ...current.draftContent.extraPhotos,
-          [category]: current.draftContent.extraPhotos[category].map((item) =>
-            item.id === id ? { ...item, description } : item,
-          ),
-        },
-      },
-    }))
+  async function handleUpdateExtraPhoto(_category, id, description) {
+    if (!isSupabaseConfigured) {
+      return
+    }
+
+    setGalleryEntries((current) =>
+      current.map((entry) => (entry.id === id ? { ...entry, description } : entry)),
+    )
+
+    try {
+      await updateGalleryEntryDescription(id, description, SITE_PASSWORD)
+      await refreshPublicGalleryEntries({ silent: true })
+    } catch (error) {
+      console.error('Erro ao atualizar legenda da foto', error)
+      showToast(getReviewErrorMessage(error, 'Não foi possível salvar o texto da foto.'))
+      await refreshAdminGalleryEntries({ silent: true })
+    }
   }
 
-  function handleDeleteExtraPhoto(category, id) {
-    setSiteState((current) => ({
-      ...current,
-      draftContent: {
-        ...current.draftContent,
-        extraPhotos: {
-          ...current.draftContent.extraPhotos,
-          [category]: current.draftContent.extraPhotos[category].filter((item) => item.id !== id),
-        },
-      },
-    }))
+  async function handleDeleteExtraPhoto(_category, id) {
+    if (!isSupabaseConfigured) {
+      return
+    }
+
+    const entry = galleryEntries.find((item) => item.id === id)
+    if (!entry) {
+      return
+    }
+
+    setGalleryMutationPending(true)
+
+    try {
+      await deleteSupabaseGalleryEntry(entry, SITE_PASSWORD)
+      await Promise.all([
+        refreshAdminGalleryEntries({ silent: true }),
+        refreshPublicGalleryEntries({ silent: true }),
+      ])
+    } catch (error) {
+      console.error('Erro ao excluir foto', error)
+      showToast(getReviewErrorMessage(error, 'Não foi possível excluir a foto.'))
+    } finally {
+      setGalleryMutationPending(false)
+    }
   }
 
   const content = siteState.publishedContent
+  const publicExtraPhotos = isSupabaseConfigured
+    ? groupGalleryEntries(publicGalleryEntries)
+    : content.extraPhotos
+  const adminExtraPhotos = isSupabaseConfigured
+    ? groupGalleryEntries(galleryEntries)
+    : siteState.draftContent.extraPhotos
   const navItems = [
     ['Início', '#inicio'],
     ['Serviços', '#servicos'],
@@ -537,7 +642,7 @@ function App() {
 
               <SectionDivider image={content.media.carpentryBottom} position="center 52%" />
 
-              <ExtraGallery title="Novas fotos de carpintaria" photos={content.extraPhotos.carpintaria} />
+              <ExtraGallery title="Novas fotos de carpintaria" photos={publicExtraPhotos.carpintaria} />
 
               <SectionDivider image={content.media.masonryTop} position="center 48%" />
 
@@ -562,7 +667,7 @@ function App() {
 
               <SectionDivider image={content.media.masonryBottom} position="center 40%" />
 
-              <ExtraGallery title="Novas fotos de alvenaria e pedreiro" photos={content.extraPhotos.alvenaria} />
+              <ExtraGallery title="Novas fotos de alvenaria e pedreiro" photos={publicExtraPhotos.alvenaria} />
             </div>
           </section>
 
@@ -629,6 +734,9 @@ function App() {
           reviews={reviews}
           reviewsLoading={adminReviewsLoading}
           reviewActionPending={reviewMutationPending}
+          extraPhotos={adminExtraPhotos}
+          extraPhotosLoading={galleryLoading}
+          extraPhotoActionPending={galleryMutationPending}
           onClose={() => setAdminOpen(false)}
           onTextChange={handleTextChange}
           onMediaReplace={handleMediaReplace}

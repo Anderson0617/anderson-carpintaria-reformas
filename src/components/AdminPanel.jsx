@@ -55,23 +55,14 @@ function ReviewActions({ review, onStatusChange, onDelete, disabled }) {
   )
 }
 
-function ExtraPhotoManager({ title, items, category, onAdd, onUpdate, onDelete }) {
+function ExtraPhotoManager({ title, items, category, disabled, onAdd, onUpdate, onDelete }) {
   async function handleUpload(event) {
     const files = Array.from(event.target.files || [])
     if (!files.length) {
       return
     }
 
-    const preparedFiles = await Promise.all(
-      files.map(async (file) => ({
-        id: crypto.randomUUID(),
-        src: await fileToDataUrl(file),
-        description: '',
-        name: file.name,
-      })),
-    )
-
-    onAdd(category, preparedFiles)
+    await onAdd(category, files)
     event.target.value = ''
   }
 
@@ -84,7 +75,7 @@ function ExtraPhotoManager({ title, items, category, onAdd, onUpdate, onDelete }
         </div>
         <label className="button button--ghost button--small file-trigger">
           Subir fotos
-          <input type="file" accept="image/*" multiple onChange={handleUpload} />
+          <input type="file" accept="image/*" multiple disabled={disabled} onChange={handleUpload} />
         </label>
       </div>
 
@@ -93,13 +84,15 @@ function ExtraPhotoManager({ title, items, category, onAdd, onUpdate, onDelete }
           items.map((item) => (
             <article className="admin-photo-card" key={item.id}>
               <img src={item.src} alt={item.name || title} />
+              <p className="panel__label">{item.status === 'published' ? 'Publicado' : 'Rascunho'}</p>
               <textarea
                 rows="3"
                 placeholder="Texto ou descrição desta foto"
                 value={item.description}
+                disabled={disabled}
                 onChange={(event) => onUpdate(category, item.id, event.target.value)}
               />
-              <button type="button" className="is-danger" onClick={() => onDelete(category, item.id)}>
+              <button type="button" className="is-danger" disabled={disabled} onClick={() => onDelete(category, item.id)}>
                 Excluir foto
               </button>
             </article>
@@ -117,6 +110,9 @@ function AdminPanel({
   reviews,
   reviewsLoading,
   reviewActionPending,
+  extraPhotos,
+  extraPhotosLoading,
+  extraPhotoActionPending,
   onClose,
   onTextChange,
   onMediaReplace,
@@ -218,7 +214,8 @@ function AdminPanel({
         <ExtraPhotoManager
           title="Carpintaria"
           category="carpintaria"
-          items={draftContent.extraPhotos.carpintaria}
+          items={extraPhotos.carpintaria}
+          disabled={extraPhotosLoading || extraPhotoActionPending}
           onAdd={onAddExtraPhotos}
           onUpdate={onUpdateExtraPhoto}
           onDelete={onDeleteExtraPhoto}
@@ -227,7 +224,8 @@ function AdminPanel({
         <ExtraPhotoManager
           title="Pedreiro / Alvenaria"
           category="alvenaria"
-          items={draftContent.extraPhotos.alvenaria}
+          items={extraPhotos.alvenaria}
+          disabled={extraPhotosLoading || extraPhotoActionPending}
           onAdd={onAddExtraPhotos}
           onUpdate={onUpdateExtraPhoto}
           onDelete={onDeleteExtraPhoto}
