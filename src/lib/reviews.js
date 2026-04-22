@@ -9,6 +9,13 @@ function normalizeReview(row) {
     comment: row.comment,
     status: row.status,
     createdAt: row.created_at,
+    country: row.country,
+    countryCode: row.country_code,
+    region: row.region,
+    regionCode: row.region_code,
+    city: row.city,
+    neighborhood: row.neighborhood,
+    precision: row.precision,
   }
 }
 
@@ -50,6 +57,13 @@ export async function createReview(review) {
     stars: review.stars,
     comment: review.comment,
     status: review.status,
+    country: review.country ?? null,
+    country_code: review.countryCode ?? null,
+    region: review.region ?? null,
+    region_code: review.regionCode ?? null,
+    city: review.city ?? null,
+    neighborhood: review.neighborhood ?? null,
+    precision: review.precision ?? 'unknown',
   })
 
   if (error) {

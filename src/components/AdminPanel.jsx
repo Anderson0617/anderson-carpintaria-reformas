@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { fileToDataUrl } from '../lib/storage'
+import { formatApproxRegion } from '../lib/location'
 
 const TEXT_FIELDS = [
   ['Título principal', 'hero.title'],
@@ -55,6 +56,41 @@ function ReviewActions({ review, onStatusChange, onDelete, disabled }) {
   )
 }
 
+function VisitorsPanel({ visitCount, visits, loading }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <section className="panel admin-block admin-insights">
+      <button type="button" className="admin-insights__trigger" onClick={() => setOpen((current) => !current)}>
+        <div>
+          <span className="panel__label">Visitantes</span>
+          <h3>Visitantes: {visitCount.toLocaleString('pt-BR')}</h3>
+        </div>
+        <span className="admin-insights__hint">{open ? 'Ocultar últimos 20' : 'Ver últimos 20'}</span>
+      </button>
+
+      {open ? (
+        <div className="admin-insights__list">
+          {loading && !visits.length ? (
+            <p className="admin-empty">Carregando acessos recentes...</p>
+          ) : visits.length ? (
+            <ol>
+              {visits.map((visit) => (
+                <li key={visit.id}>
+                  <strong>{formatApproxRegion(visit)}</strong>
+                  <span>{new Date(visit.createdAt).toLocaleString('pt-BR')}</span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="admin-empty">Nenhum acesso recente registrado.</p>
+          )}
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
 function ExtraPhotoManager({ title, items, category, disabled, onAdd, onUpdate, onDelete }) {
   async function handleUpload(event) {
     const files = Array.from(event.target.files || [])
@@ -107,6 +143,9 @@ function ExtraPhotoManager({ title, items, category, disabled, onAdd, onUpdate, 
 
 function AdminPanel({
   draftContent,
+  visitCount,
+  recentVisits,
+  recentVisitsLoading,
   reviews,
   reviewsLoading,
   reviewActionPending,
@@ -171,6 +210,8 @@ function AdminPanel({
             Fechar
           </button>
         </header>
+
+        <VisitorsPanel visitCount={visitCount} visits={recentVisits} loading={recentVisitsLoading} />
 
         <section className="panel admin-block">
           <span className="panel__label">Textos principais</span>
@@ -266,6 +307,7 @@ function AdminPanel({
                     <span>{new Date(review.createdAt).toLocaleString('pt-BR')}</span>
                   </div>
                   <p>{review.comment}</p>
+                  <p className="admin-review-card__region">Região: {formatApproxRegion(review)}</p>
                   <ReviewActions
                     review={review}
                     disabled={reviewActionPending}

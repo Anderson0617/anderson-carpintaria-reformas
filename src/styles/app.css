@@ -832,6 +832,48 @@ textarea {
   gap: 16px;
 }
 
+.admin-insights {
+  padding: 0;
+  overflow: hidden;
+}
+
+.admin-insights__trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 22px;
+  background: linear-gradient(180deg, rgba(10, 22, 38, 0.94), rgba(8, 17, 30, 0.92));
+  color: var(--text);
+}
+
+.admin-insights__hint {
+  color: #9fc3ff;
+  font-size: 0.9rem;
+}
+
+.admin-insights__list {
+  padding: 0 22px 20px;
+}
+
+.admin-insights__list ol {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.admin-insights__list li {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+}
+
+.admin-insights__list strong {
+  color: var(--text);
+}
+
 .admin-panel h2,
 .admin-panel h3 {
   margin: 6px 0 0;
@@ -905,6 +947,12 @@ textarea {
   flex-wrap: wrap;
   gap: 12px;
   color: var(--muted);
+}
+
+.admin-review-card__region {
+  margin-top: 10px;
+  color: #bfd5fb;
+  font-size: 0.94rem;
 }
 
 .admin-review-actions {

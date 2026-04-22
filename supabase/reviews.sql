@@ -5,9 +5,24 @@ create table if not exists public.reviews (
   comment text not null check (char_length(trim(comment)) between 3 and 1500),
   stars smallint not null check (stars between 1 and 5),
   status text not null check (status in ('private', 'pending', 'approved', 'hidden')),
+  country text,
+  country_code text,
+  region text,
+  region_code text,
+  city text,
+  neighborhood text,
+  precision text not null default 'unknown' check (precision in ('unknown', 'state', 'city', 'neighborhood')),
   created_at timestamptz not null default timezone('utc'::text, now()),
   approved_at timestamptz
 );
+
+alter table public.reviews add column if not exists country text;
+alter table public.reviews add column if not exists country_code text;
+alter table public.reviews add column if not exists region text;
+alter table public.reviews add column if not exists region_code text;
+alter table public.reviews add column if not exists city text;
+alter table public.reviews add column if not exists neighborhood text;
+alter table public.reviews add column if not exists precision text not null default 'unknown';
 
 alter table public.reviews enable row level security;
 

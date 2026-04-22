@@ -28,7 +28,8 @@ import {
 } from './lib/gallery'
 import { loadState, saveState } from './lib/storage'
 import { isSupabaseConfigured } from './lib/supabase'
-import { getSiteVisits, incrementSiteVisits } from './lib/visitors'
+import { listRecentVisits, getSiteVisits, incrementSiteVisits } from './lib/visitors'
+import { getApproxLocation, getOrCreateVisitorSessionId } from './lib/location'
 
 const initialState = {
   draftContent: defaultDraftContent,
@@ -112,6 +113,9 @@ function App() {
   const [galleryMutationPending, setGalleryMutationPending] = useState(false)
   const [visitCount, setVisitCount] = useState(0)
   const [visitCountReady, setVisitCountReady] = useState(false)
+  const [recentVisits, setRecentVisits] = useState([])
+  const [recentVisitsLoading, setRecentVisitsLoading] = useState(false)
+  const [visitorLocation, setVisitorLocation] = useState(null)
   const mobileMenuRef = useRef(null)
   const serviceGridRef = useRef(null)
   const publishTimeoutRef = useRef(null)
@@ -214,7 +218,18 @@ function App() {
 
     async function syncVisitCount({ increment = false } = {}) {
       try {
-        const nextCount = increment ? await incrementSiteVisits() : await getSiteVisits()
+        const location = visitorLocation ?? (await getApproxLocation())
+        if (!cancelled) {
+          setVisitorLocation(location)
+        }
+
+        const nextCount = increment
+          ? await incrementSiteVisits({
+              location,
+              sessionId: getOrCreateVisitorSessionId(),
+            })
+          : await getSiteVisits()
+
         if (!cancelled) {
           setVisitCount(nextCount)
           setVisitCountReady(true)
@@ -256,7 +271,7 @@ function App() {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('focus', handleWindowFocus)
     }
-  }, [])
+  }, [visitorLocation])
 
   function showToast(message) {
     setPublishMessage(message)
@@ -310,6 +325,24 @@ function App() {
     }
   }
 
+  async function refreshRecentVisits({ silent = false } = {}) {
+    setRecentVisitsLoading(true)
+
+    try {
+      const nextVisits = await listRecentVisits(SITE_PASSWORD)
+      setRecentVisits(nextVisits)
+      return nextVisits
+    } catch (error) {
+      console.error('Erro ao carregar visitantes recentes', error)
+      if (!silent) {
+        showToast(getReviewErrorMessage(error, 'Não foi possível carregar os visitantes recentes.'))
+      }
+      return null
+    } finally {
+      setRecentVisitsLoading(false)
+    }
+  }
+
   async function refreshPublicGalleryEntries({ silent = false } = {}) {
     try {
       const nextEntries = await listPublicGalleryEntries()
@@ -344,7 +377,16 @@ function App() {
 
   async function handleCreateReview(review) {
     try {
-      await createSupabaseReview(review)
+      const location = visitorLocation ?? (isSupabaseConfigured ? await getApproxLocation() : null)
+
+      if (location) {
+        setVisitorLocation(location)
+      }
+
+      await createSupabaseReview({
+        ...review,
+        ...location,
+      })
 
       if (adminOpen) {
         await refreshAdminReviews({ silent: true })
@@ -363,7 +405,7 @@ function App() {
       setPasswordModalOpen(false)
       setPasswordValue('')
       setPasswordError('')
-      await Promise.all([refreshAdminReviews(), refreshAdminGalleryEntries()])
+      await Promise.all([refreshAdminReviews(), refreshAdminGalleryEntries(), refreshRecentVisits()])
       return
     }
 
@@ -792,6 +834,9 @@ function App() {
       {adminOpen ? (
         <AdminPanel
           draftContent={siteState.draftContent}
+          visitCount={visitCount}
+          recentVisits={recentVisits}
+          recentVisitsLoading={recentVisitsLoading}
           reviews={reviews}
           reviewsLoading={adminReviewsLoading}
           reviewActionPending={reviewMutationPending}
