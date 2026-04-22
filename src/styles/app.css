@@ -709,8 +709,7 @@ textarea {
 }
 
 .form-feedback,
-.admin-empty,
-.footer__count {
+.admin-empty {
   margin: 16px 0 0;
   color: var(--success);
 }
@@ -754,6 +753,16 @@ textarea {
 .footer__closing {
   max-width: 56ch;
   margin: 4px 0 0;
+}
+
+.footer__count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.2em;
+  margin: 6px 0 0;
+  color: rgba(197, 214, 243, 0.72);
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
 }
 
 .footer__contacts a:hover {

@@ -28,11 +28,14 @@ import {
 } from './lib/gallery'
 import { loadState, saveState } from './lib/storage'
 import { isSupabaseConfigured } from './lib/supabase'
+import { getSiteVisits, incrementSiteVisits } from './lib/visitors'
 
 const initialState = {
   draftContent: defaultDraftContent,
   publishedContent: defaultPublishedContent,
 }
+
+const VISIT_SESSION_KEY = 'anderson-carpintaria-visit-registered'
 
 function SectionDivider({ image, position = 'center' }) {
   return (
@@ -107,6 +110,8 @@ function App() {
   const [publicGalleryEntries, setPublicGalleryEntries] = useState(() => [])
   const [galleryLoading, setGalleryLoading] = useState(false)
   const [galleryMutationPending, setGalleryMutationPending] = useState(false)
+  const [visitCount, setVisitCount] = useState(0)
+  const [visitCountReady, setVisitCountReady] = useState(false)
   const mobileMenuRef = useRef(null)
   const serviceGridRef = useRef(null)
   const publishTimeoutRef = useRef(null)
@@ -198,6 +203,59 @@ function App() {
     }
 
     refreshPublicGalleryEntries({ silent: true })
+  }, [])
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || typeof window === 'undefined') {
+      return
+    }
+
+    let cancelled = false
+
+    async function syncVisitCount({ increment = false } = {}) {
+      try {
+        const nextCount = increment ? await incrementSiteVisits() : await getSiteVisits()
+        if (!cancelled) {
+          setVisitCount(nextCount)
+          setVisitCountReady(true)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar contador global de visitas', error)
+      }
+    }
+
+    const hasRegisteredVisit = window.sessionStorage.getItem(VISIT_SESSION_KEY) === '1'
+
+    if (hasRegisteredVisit) {
+      syncVisitCount()
+    } else {
+      window.sessionStorage.setItem(VISIT_SESSION_KEY, '1')
+      syncVisitCount({ increment: true })
+    }
+
+    const refreshInterval = window.setInterval(() => {
+      syncVisitCount()
+    }, 15000)
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        syncVisitCount()
+      }
+    }
+
+    function handleWindowFocus() {
+      syncVisitCount()
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleWindowFocus)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(refreshInterval)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleWindowFocus)
+    }
   }, [])
 
   function showToast(message) {
@@ -694,6 +752,9 @@ function App() {
             </div>
 
             <p className="footer__closing">{content.footer.closing}</p>
+            {isSupabaseConfigured ? (
+              <p className="footer__count">Visitas: {visitCountReady ? visitCount.toLocaleString('pt-BR') : '...'}</p>
+            ) : null}
           </div>
 
           <button
