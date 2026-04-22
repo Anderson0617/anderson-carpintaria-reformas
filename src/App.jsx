@@ -6,7 +6,6 @@ import {
   SITE_PASSWORD,
   defaultDraftContent,
   defaultPublishedContent,
-  defaultPublishedReviews,
   defaultReviews,
   fixedGallerySections,
   serviceItems,
@@ -83,7 +82,9 @@ function App() {
     isSupabaseConfigured || !import.meta.env.DEV ? [] : defaultReviews,
   )
   const [publicReviews, setPublicReviews] = useState(() =>
-    isSupabaseConfigured || !import.meta.env.DEV ? [] : defaultPublishedReviews,
+    isSupabaseConfigured || !import.meta.env.DEV
+      ? []
+      : defaultReviews.filter((review) => review.status === 'approved'),
   )
   const [adminOpen, setAdminOpen] = useState(false)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
