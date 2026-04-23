@@ -276,6 +276,7 @@
 
 .review-layout > .section-copy {
   max-width: 72ch;
+  margin-bottom: 0;
 }
 
 .hero__copy {
@@ -664,7 +665,7 @@
   align-items: center;
 }
 
-.review-grid {
+.review-stack {
   display: grid;
   grid-template-columns: 1fr;
   gap: 24px;
@@ -679,7 +680,8 @@
 }
 
 .review-form {
-  width: min(100%, 760px);
+  width: 100%;
+  max-width: 780px;
 }
 
 .review-public .review-card {
@@ -1020,8 +1022,7 @@ textarea {
 @media (max-width: 1080px) {
   .hero__content,
   .about__content,
-  .review-grid {
-    grid-template-columns: 1fr;
+  .review-stack {
     align-items: start;
   }
 
@@ -1188,7 +1189,7 @@ textarea {
     scroll-snap-align: start;
   }
 
-  .review-grid {
+  .review-stack {
     gap: 18px;
   }
 
