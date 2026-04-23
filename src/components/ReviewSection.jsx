@@ -54,7 +54,7 @@ function ReviewSection({ intro, publicReviews, onCreateReview }) {
           <p>{intro.text}</p>
         </div>
 
-        <div className="review-grid">
+        <div className="review-stack">
           <form className="review-form panel" onSubmit={handleSubmit}>
             <div className="form-block">
               <span className="panel__label">1. Escolha as estrelas</span>
@@ -95,7 +95,7 @@ function ReviewSection({ intro, publicReviews, onCreateReview }) {
             {feedback ? <p className="form-feedback">{feedback}</p> : null}
           </form>
 
-          <div className="review-public">
+          <div className="review-public" aria-live="polite">
             {publicReviews.length ? (
               publicReviews.map((review) => (
                 <article key={review.id} className="review-card panel">

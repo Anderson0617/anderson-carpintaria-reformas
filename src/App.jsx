@@ -71,7 +71,6 @@ function ExtraGallery({ title, photos }) {
             <article className="masonry-card" key={photo.id}>
               <img src={photo.src} alt={photo.name || title} loading="lazy" />
               <div className="masonry-card__body">
-                <strong>{photo.name || 'Nova foto'}</strong>
                 <p>{photo.description || 'Espaço reservado para descrição futura.'}</p>
               </div>
             </article>

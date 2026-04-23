@@ -209,3 +209,5 @@ export const defaultReviews = [
     createdAt: '2026-04-14T11:00:00.000Z',
   },
 ]
+
+export const defaultPublishedReviews = defaultReviews.filter((review) => review.status === 'approved')
