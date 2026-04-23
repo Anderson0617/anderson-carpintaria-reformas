@@ -490,6 +490,7 @@
 .review-public {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
+  min-width: 0;
 }
 
 .service-grid {
@@ -685,12 +686,20 @@
 }
 
 .review-public .review-card {
+  min-width: 0;
   height: max-content;
   padding: 18px 18px 20px;
+  overflow: hidden;
 }
 
 .review-public .review-card--empty {
   grid-column: 1 / -1;
+}
+
+.review-public .review-card p {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .form-block + .form-block {
