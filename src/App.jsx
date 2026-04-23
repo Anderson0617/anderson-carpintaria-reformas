@@ -31,6 +31,7 @@ import { isSupabaseConfigured } from './lib/supabase'
 import { listRecentVisits, getSiteVisits, incrementSiteVisits } from './lib/visitors'
 import { getApproxLocation, getOrCreateVisitorSessionId } from './lib/location'
 import { isGithubPublishConfigured, publishGithubWorkflow } from './lib/githubPublish'
+import { EDITABLE_MEDIA_PATHS, isDataUrl, listPublicEditableMedia, uploadEditableMediaAssets } from './lib/mediaAssets'
 
 const initialState = {
   draftContent: defaultDraftContent,
@@ -38,6 +39,52 @@ const initialState = {
 }
 
 const VISIT_SESSION_KEY = 'anderson-carpintaria-visit-registered'
+
+function applyEditableMediaOverrides(content, overrides) {
+  let nextContent = structuredClone(content)
+
+  for (const [key, url] of Object.entries(overrides)) {
+    const path = EDITABLE_MEDIA_PATHS[key]
+    if (!path || !url) {
+      continue
+    }
+
+    nextContent = updateByPath(nextContent, path, url)
+  }
+
+  return nextContent
+}
+
+function mergeEditableMediaIntoState(state, overrides) {
+  const nextPublished = applyEditableMediaOverrides(state.publishedContent, overrides)
+  let nextDraft = structuredClone(state.draftContent)
+
+  for (const [key, url] of Object.entries(overrides)) {
+    const path = EDITABLE_MEDIA_PATHS[key]
+    if (!path || !url) {
+      continue
+    }
+
+    const currentDraftValue = path.split('.').reduce((accumulator, segment) => accumulator?.[segment], nextDraft)
+    if (!isDataUrl(currentDraftValue)) {
+      nextDraft = updateByPath(nextDraft, path, url)
+    }
+  }
+
+  return {
+    ...state,
+    draftContent: nextDraft,
+    publishedContent: nextPublished,
+  }
+}
+
+function collectPendingEditableMedia(content) {
+  return Object.fromEntries(
+    Object.entries(EDITABLE_MEDIA_PATHS)
+      .map(([key, path]) => [key, path.split('.').reduce((accumulator, segment) => accumulator?.[segment], content)])
+      .filter(([, value]) => isDataUrl(value)),
+  )
+}
 
 function SectionDivider({ image, position = 'center' }) {
   return (
@@ -120,6 +167,9 @@ function App() {
   const [githubPublishPending, setGithubPublishPending] = useState(false)
   const [githubPublishStatus, setGithubPublishStatus] = useState('idle')
   const [githubPublishMessage, setGithubPublishMessage] = useState('Aguardando')
+  const [supabaseMediaPending, setSupabaseMediaPending] = useState(false)
+  const [supabaseMediaStatus, setSupabaseMediaStatus] = useState('idle')
+  const [supabaseMediaMessage, setSupabaseMediaMessage] = useState('Aguardando')
   const mobileMenuRef = useRef(null)
   const serviceGridRef = useRef(null)
   const publishTimeoutRef = useRef(null)
@@ -211,6 +261,14 @@ function App() {
     }
 
     refreshPublicGalleryEntries({ silent: true })
+  }, [])
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      return
+    }
+
+    refreshPublicEditableMedia({ silent: true })
   }, [])
 
   useEffect(() => {
@@ -326,6 +384,20 @@ function App() {
       return null
     } finally {
       setAdminReviewsLoading(false)
+    }
+  }
+
+  async function refreshPublicEditableMedia({ silent = false } = {}) {
+    try {
+      const overrides = await listPublicEditableMedia()
+      setSiteState((current) => mergeEditableMediaIntoState(current, overrides))
+      return overrides
+    } catch (error) {
+      console.error('Erro ao carregar mídias globais editadas', error)
+      if (!silent) {
+        showToast(getReviewErrorMessage(error, 'Não foi possível carregar as mídias globais.'))
+      }
+      return null
     }
   }
 
@@ -525,6 +597,58 @@ function App() {
       )
     } finally {
       setGithubPublishPending(false)
+    }
+  }
+
+  async function handleSupabaseMediaUpload() {
+    if (supabaseMediaPending) {
+      return
+    }
+
+    if (!isSupabaseConfigured) {
+      setSupabaseMediaStatus('error')
+      setSupabaseMediaMessage('Supabase não configurado.')
+      return
+    }
+
+    if (!adminCredential) {
+      setSupabaseMediaStatus('error')
+      setSupabaseMediaMessage('Faça login no ADM novamente antes de enviar.')
+      return
+    }
+
+    const pendingAssets = collectPendingEditableMedia(siteState.draftContent)
+    if (!Object.keys(pendingAssets).length) {
+      setSupabaseMediaStatus('idle')
+      setSupabaseMediaMessage('Nenhuma imagem editada pendente.')
+      return
+    }
+
+    setSupabaseMediaPending(true)
+    setSupabaseMediaStatus('pending')
+    setSupabaseMediaMessage('Enviando...')
+
+    try {
+      const uploadedUrls = await uploadEditableMediaAssets({
+        assets: pendingAssets,
+        adminPassword: adminCredential,
+      })
+
+      setSiteState((current) => ({
+        ...mergeEditableMediaIntoState(current, uploadedUrls),
+        draftContent: applyEditableMediaOverrides(current.draftContent, uploadedUrls),
+      }))
+      await refreshPublicEditableMedia({ silent: true })
+      setSupabaseMediaStatus('success')
+      setSupabaseMediaMessage('Mídia persistida no Supabase')
+    } catch (error) {
+      console.error('Erro ao subir mídia para o Supabase', error)
+      setSupabaseMediaStatus('error')
+      setSupabaseMediaMessage(
+        error instanceof Error && error.message ? error.message : 'Falha ao subir para o Supabase',
+      )
+    } finally {
+      setSupabaseMediaPending(false)
     }
   }
 
@@ -897,6 +1021,10 @@ function App() {
           onAddExtraPhotos={handleAddExtraPhotos}
           onUpdateExtraPhoto={handleUpdateExtraPhoto}
           onDeleteExtraPhoto={handleDeleteExtraPhoto}
+          supabaseMediaPending={supabaseMediaPending}
+          supabaseMediaStatus={supabaseMediaStatus}
+          supabaseMediaMessage={supabaseMediaMessage}
+          onSupabaseMediaUpload={handleSupabaseMediaUpload}
           githubPublishPending={githubPublishPending}
           githubPublishStatus={githubPublishStatus}
           githubPublishMessage={githubPublishMessage}

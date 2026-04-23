@@ -167,6 +167,10 @@ function AdminPanel({
   onAddExtraPhotos,
   onUpdateExtraPhoto,
   onDeleteExtraPhoto,
+  supabaseMediaPending,
+  supabaseMediaStatus,
+  supabaseMediaMessage,
+  onSupabaseMediaUpload,
   githubPublishPending,
   githubPublishStatus,
   githubPublishMessage,
@@ -209,6 +213,10 @@ function AdminPanel({
 
   async function handleGithubPublishClick() {
     await onGithubPublish()
+  }
+
+  async function handleSupabaseMediaUploadClick() {
+    await onSupabaseMediaUpload()
   }
 
   return (
@@ -337,16 +345,30 @@ function AdminPanel({
         </section>
 
         <footer className="admin-footer">
-          <div className="admin-footer__publish">
-            <button
-              type="button"
-              className="button button--primary"
-              disabled={githubPublishPending}
-              onClick={handleGithubPublishClick}
-            >
-              {githubPublishPending ? 'Publicando...' : 'Publicar no GitHub'}
-            </button>
-            <p className={`admin-footer__status is-${githubPublishStatus}`}>{githubPublishMessage}</p>
+          <div className="admin-footer__actions">
+            <div className="admin-footer__publish">
+              <button
+                type="button"
+                className="button button--ghost"
+                disabled={supabaseMediaPending}
+                onClick={handleSupabaseMediaUploadClick}
+              >
+                {supabaseMediaPending ? 'Enviando...' : 'Subir para o Supabase'}
+              </button>
+              <p className={`admin-footer__status is-${supabaseMediaStatus}`}>{supabaseMediaMessage}</p>
+            </div>
+
+            <div className="admin-footer__publish">
+              <button
+                type="button"
+                className="button button--primary"
+                disabled={githubPublishPending}
+                onClick={handleGithubPublishClick}
+              >
+                {githubPublishPending ? 'Publicando...' : 'Publicar no GitHub'}
+              </button>
+              <p className={`admin-footer__status is-${githubPublishStatus}`}>{githubPublishMessage}</p>
+            </div>
           </div>
         </footer>
       </div>
