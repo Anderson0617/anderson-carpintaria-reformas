@@ -261,12 +261,21 @@
 }
 
 .hero__content,
-.about__content,
-.review-layout {
+.about__content {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: clamp(32px, 5vw, 72px);
   align-items: center;
+}
+
+.review-layout {
+  display: grid;
+  gap: 28px;
+  align-items: start;
+}
+
+.review-layout > .section-copy {
+  max-width: 72ch;
 }
 
 .hero__copy {
@@ -993,7 +1002,6 @@ textarea {
 @media (max-width: 1080px) {
   .hero__content,
   .about__content,
-  .review-layout,
   .review-grid {
     grid-template-columns: 1fr;
     align-items: start;
