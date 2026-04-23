@@ -1,0 +1,10 @@
+name = "anderson-github-publish"
+main = "github-publish-worker.js"
+compatibility_date = "2026-04-23"
+
+[vars]
+GITHUB_OWNER = "Anderson0617"
+GITHUB_REPO = "anderson-carpintaria-reformas"
+GITHUB_WORKFLOW_FILE = "deploy.yml"
+GITHUB_BRANCH = "main"
+ALLOWED_ORIGIN = "https://anderson0617.github.io"

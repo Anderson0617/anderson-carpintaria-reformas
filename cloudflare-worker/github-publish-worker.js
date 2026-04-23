@@ -12,9 +12,22 @@ function json(data, status = 200, corsHeaders = {}) {
   })
 }
 
+function normalizeOrigin(value) {
+  const trimmed = value?.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  try {
+    return new URL(trimmed).origin
+  } catch {
+    return trimmed
+  }
+}
+
 function getCorsHeaders(request, env) {
   const origin = request.headers.get('Origin') || ''
-  const allowedOrigin = env.ALLOWED_ORIGIN?.trim()
+  const allowedOrigin = normalizeOrigin(env.ALLOWED_ORIGIN)
 
   if (!allowedOrigin || origin === allowedOrigin) {
     return {
@@ -32,7 +45,7 @@ function getCorsHeaders(request, env) {
 }
 
 function assertAllowedOrigin(request, env) {
-  const allowedOrigin = env.ALLOWED_ORIGIN?.trim()
+  const allowedOrigin = normalizeOrigin(env.ALLOWED_ORIGIN)
   const origin = request.headers.get('Origin') || ''
 
   if (allowedOrigin && origin !== allowedOrigin) {
