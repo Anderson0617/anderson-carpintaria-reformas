@@ -103,6 +103,7 @@ function App() {
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const [passwordValue, setPasswordValue] = useState('')
   const [passwordError, setPasswordError] = useState('')
+  const [adminCredential, setAdminCredential] = useState('')
   const [publishMessage, setPublishMessage] = useState('')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [adminReviewsLoading, setAdminReviewsLoading] = useState(false)
@@ -404,6 +405,7 @@ function App() {
     event.preventDefault()
 
     if (passwordValue === SITE_PASSWORD) {
+      setAdminCredential(passwordValue)
       setAdminOpen(true)
       setPasswordModalOpen(false)
       setPasswordValue('')
@@ -490,7 +492,7 @@ function App() {
     }
   }
 
-  async function handleGithubPublish(adminCredential) {
+  async function handleGithubPublish() {
     if (githubPublishPending) {
       return
     }
@@ -498,6 +500,12 @@ function App() {
     if (!isGithubPublishConfigured) {
       setGithubPublishStatus('error')
       setGithubPublishMessage('Endpoint do Worker não configurado.')
+      return
+    }
+
+    if (!adminCredential) {
+      setGithubPublishStatus('error')
+      setGithubPublishMessage('Faça login no ADM novamente antes de publicar.')
       return
     }
 
@@ -876,7 +884,10 @@ function App() {
           extraPhotos={adminExtraPhotos}
           extraPhotosLoading={galleryLoading}
           extraPhotoActionPending={galleryMutationPending}
-          onClose={() => setAdminOpen(false)}
+          onClose={() => {
+            setAdminOpen(false)
+            setAdminCredential('')
+          }}
           onTextChange={handleTextChange}
           onMediaReplace={handleMediaReplace}
           onPublish={handlePublish}

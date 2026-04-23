@@ -208,12 +208,7 @@ function AdminPanel({
   }
 
   async function handleGithubPublishClick() {
-    const adminCredential = window.prompt('Digite a chave de publicação do GitHub')
-    if (!adminCredential) {
-      return
-    }
-
-    await onGithubPublish(adminCredential)
+    await onGithubPublish()
   }
 
   return (
