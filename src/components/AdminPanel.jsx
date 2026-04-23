@@ -58,6 +58,10 @@ function ReviewActions({ review, onStatusChange, onDelete, disabled }) {
 
 function VisitorsPanel({ visitCount, visits, loading }) {
   const [open, setOpen] = useState(false)
+  const orderedVisits = useMemo(
+    () => [...visits].sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt)),
+    [visits],
+  )
 
   return (
     <section className="panel admin-block admin-insights">
@@ -71,13 +75,15 @@ function VisitorsPanel({ visitCount, visits, loading }) {
 
       {open ? (
         <div className="admin-insights__list">
-          {loading && !visits.length ? (
+          {loading && !orderedVisits.length ? (
             <p className="admin-empty">Carregando acessos recentes...</p>
-          ) : visits.length ? (
+          ) : orderedVisits.length ? (
             <ol>
-              {visits.map((visit) => (
+              {orderedVisits.map((visit, index) => (
                 <li key={visit.id}>
-                  <strong>{formatApproxRegion(visit)}</strong>
+                  <strong>
+                    {index + 1}º {formatApproxRegion(visit)}
+                  </strong>
                   <span>{new Date(visit.createdAt).toLocaleString('pt-BR')}</span>
                 </li>
               ))}
