@@ -21,6 +21,7 @@ jobs:
     env:
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      VITE_PUBLISH_WORKER_URL: ${{ secrets.VITE_PUBLISH_WORKER_URL }}
 
     steps:
       - name: Checkout
@@ -39,6 +40,7 @@ jobs:
         run: |
           test -n "$VITE_SUPABASE_URL"
           test -n "$VITE_SUPABASE_PUBLISHABLE_KEY"
+          test -n "$VITE_PUBLISH_WORKER_URL"
 
       - name: Build
         run: npm run build

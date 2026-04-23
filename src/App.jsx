@@ -30,6 +30,7 @@ import { loadState, saveState } from './lib/storage'
 import { isSupabaseConfigured } from './lib/supabase'
 import { listRecentVisits, getSiteVisits, incrementSiteVisits } from './lib/visitors'
 import { getApproxLocation, getOrCreateVisitorSessionId } from './lib/location'
+import { isGithubPublishConfigured, publishGithubWorkflow } from './lib/githubPublish'
 
 const initialState = {
   draftContent: defaultDraftContent,
@@ -115,6 +116,9 @@ function App() {
   const [recentVisits, setRecentVisits] = useState([])
   const [recentVisitsLoading, setRecentVisitsLoading] = useState(false)
   const [visitorLocation, setVisitorLocation] = useState(null)
+  const [githubPublishPending, setGithubPublishPending] = useState(false)
+  const [githubPublishStatus, setGithubPublishStatus] = useState('idle')
+  const [githubPublishMessage, setGithubPublishMessage] = useState('Aguardando')
   const mobileMenuRef = useRef(null)
   const serviceGridRef = useRef(null)
   const publishTimeoutRef = useRef(null)
@@ -486,6 +490,36 @@ function App() {
     }
   }
 
+  async function handleGithubPublish(adminCredential) {
+    if (githubPublishPending) {
+      return
+    }
+
+    if (!isGithubPublishConfigured) {
+      setGithubPublishStatus('error')
+      setGithubPublishMessage('Endpoint do Worker não configurado.')
+      return
+    }
+
+    setGithubPublishPending(true)
+    setGithubPublishStatus('pending')
+    setGithubPublishMessage('Publicando...')
+
+    try {
+      await publishGithubWorkflow(adminCredential)
+      setGithubPublishStatus('success')
+      setGithubPublishMessage('Publicado com sucesso')
+    } catch (error) {
+      console.error('Erro ao publicar no GitHub', error)
+      setGithubPublishStatus('error')
+      setGithubPublishMessage(
+        error instanceof Error && error.message ? error.message : 'Falha ao publicar',
+      )
+    } finally {
+      setGithubPublishPending(false)
+    }
+  }
+
   async function handleAddExtraPhotos(category, files) {
     if (!isSupabaseConfigured) {
       return
@@ -851,6 +885,10 @@ function App() {
           onAddExtraPhotos={handleAddExtraPhotos}
           onUpdateExtraPhoto={handleUpdateExtraPhoto}
           onDeleteExtraPhoto={handleDeleteExtraPhoto}
+          githubPublishPending={githubPublishPending}
+          githubPublishStatus={githubPublishStatus}
+          githubPublishMessage={githubPublishMessage}
+          onGithubPublish={handleGithubPublish}
         />
       ) : null}
 

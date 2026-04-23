@@ -870,6 +870,33 @@ textarea {
   gap: 16px;
 }
 
+.admin-footer__publish {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-footer__status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.admin-footer__status.is-idle {
+  color: var(--muted);
+}
+
+.admin-footer__status.is-pending {
+  color: #9fc3ff;
+}
+
+.admin-footer__status.is-success {
+  color: var(--success);
+}
+
+.admin-footer__status.is-error {
+  color: #ffd9de;
+}
+
 .admin-insights {
   padding: 0;
   overflow: hidden;

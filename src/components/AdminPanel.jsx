@@ -167,6 +167,10 @@ function AdminPanel({
   onAddExtraPhotos,
   onUpdateExtraPhoto,
   onDeleteExtraPhoto,
+  githubPublishPending,
+  githubPublishStatus,
+  githubPublishMessage,
+  onGithubPublish,
 }) {
   const [filter, setFilter] = useState('all')
 
@@ -201,6 +205,15 @@ function AdminPanel({
     const dataUrl = await fileToDataUrl(file)
     onMediaReplace(key, dataUrl)
     event.target.value = ''
+  }
+
+  async function handleGithubPublishClick() {
+    const adminCredential = window.prompt('Digite a chave de publicação do GitHub')
+    if (!adminCredential) {
+      return
+    }
+
+    await onGithubPublish(adminCredential)
   }
 
   return (
@@ -329,9 +342,17 @@ function AdminPanel({
         </section>
 
         <footer className="admin-footer">
-          <button type="button" className="button button--primary" onClick={onPublish}>
-            Publicar alterações
-          </button>
+          <div className="admin-footer__publish">
+            <button
+              type="button"
+              className="button button--primary"
+              disabled={githubPublishPending}
+              onClick={handleGithubPublishClick}
+            >
+              {githubPublishPending ? 'Publicando...' : 'Publicar no GitHub'}
+            </button>
+            <p className={`admin-footer__status is-${githubPublishStatus}`}>{githubPublishMessage}</p>
+          </div>
         </footer>
       </div>
     </aside>
