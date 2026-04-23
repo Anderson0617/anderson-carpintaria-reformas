@@ -487,7 +487,7 @@
 }
 
 .review-public {
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
 }
 
@@ -666,7 +666,7 @@
 
 .review-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  grid-template-columns: 1fr;
   gap: 24px;
   align-items: start;
 }
@@ -676,6 +676,10 @@
 .admin-block,
 .password-modal__content {
   padding: 28px;
+}
+
+.review-form {
+  width: min(100%, 760px);
 }
 
 .review-public .review-card {
