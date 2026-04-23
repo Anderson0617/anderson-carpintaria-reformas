@@ -860,6 +860,7 @@ function App() {
             <input
               type="password"
               inputMode="numeric"
+              autoComplete="new-password"
               value={passwordValue}
               onChange={(event) => setPasswordValue(event.target.value)}
               placeholder="Digite a senha"
