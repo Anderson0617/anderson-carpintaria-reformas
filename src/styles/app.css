@@ -486,6 +486,11 @@
   gap: 18px;
 }
 
+.review-public {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  align-items: start;
+}
+
 .service-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 20px;
@@ -671,6 +676,15 @@
 .admin-block,
 .password-modal__content {
   padding: 28px;
+}
+
+.review-public .review-card {
+  height: max-content;
+  padding: 18px 18px 20px;
+}
+
+.review-public .review-card--empty {
+  grid-column: 1 / -1;
 }
 
 .form-block + .form-block {
@@ -1047,7 +1061,8 @@ textarea {
   .gallery-grid,
   .admin-form-grid,
   .admin-media-grid,
-  .admin-photo-list {
+  .admin-photo-list,
+  .review-public {
     grid-template-columns: 1fr;
   }
 
