@@ -54,16 +54,25 @@ function assertAllowedOrigin(request, env) {
 }
 
 function assertConfigured(env) {
+  const githubToken =
+    env.DISPATCH_KEY ||
+    env.GH_DISPATCH_PAT ||
+    env.DISPATCH_PAT ||
+    env.WORKFLOW_DISPATCH_TOKEN ||
+    env.GITHUB_WORKFLOW_TOKEN ||
+    env.GITHUB_TOKEN
   const required = [
     'ADMIN_PUBLISH_KEY',
     'GITHUB_OWNER',
     'GITHUB_REPO',
     'GITHUB_WORKFLOW_FILE',
     'GITHUB_BRANCH',
-    'GITHUB_TOKEN',
   ]
 
   const missing = required.filter((key) => !env[key])
+  if (!githubToken) {
+    missing.push('DISPATCH_KEY')
+  }
   if (missing.length) {
     throw new Error(`Worker incompleto: faltam secrets ${missing.join(', ')}`)
   }
@@ -93,13 +102,20 @@ function checkRateLimit(request) {
 }
 
 async function dispatchGithubWorkflow(env) {
+  const githubToken =
+    env.DISPATCH_KEY ||
+    env.GH_DISPATCH_PAT ||
+    env.DISPATCH_PAT ||
+    env.WORKFLOW_DISPATCH_TOKEN ||
+    env.GITHUB_WORKFLOW_TOKEN ||
+    env.GITHUB_TOKEN
   const response = await fetch(
     `https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/actions/workflows/${env.GITHUB_WORKFLOW_FILE}/dispatches`,
     {
       method: 'POST',
       headers: {
         Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+        Authorization: `Bearer ${githubToken}`,
         'Content-Type': 'application/json',
         'User-Agent': 'anderson-carpintaria-reformas-worker',
         'X-GitHub-Api-Version': '2022-11-28',
