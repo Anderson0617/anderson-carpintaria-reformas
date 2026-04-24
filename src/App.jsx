@@ -169,7 +169,10 @@ function App() {
   const [githubPublishMessage, setGithubPublishMessage] = useState('Aguardando')
   const [supabaseMediaPending, setSupabaseMediaPending] = useState(false)
   const [supabaseMediaStatus, setSupabaseMediaStatus] = useState('idle')
-  const [supabaseMediaMessage, setSupabaseMediaMessage] = useState('Aguardando')
+  const [supabaseMediaMessage, setSupabaseMediaMessage] = useState('Só para mídias editáveis')
+  const [publishPending, setPublishPending] = useState(false)
+  const [publishStatus, setPublishStatus] = useState('idle')
+  const [publishStatusMessage, setPublishStatusMessage] = useState('Publica rascunhos da galeria')
   const mobileMenuRef = useRef(null)
   const serviceGridRef = useRef(null)
   const publishTimeoutRef = useRef(null)
@@ -513,6 +516,14 @@ function App() {
   }
 
   async function handlePublish() {
+    if (publishPending) {
+      return
+    }
+
+    setPublishPending(true)
+    setPublishStatus('pending')
+    setPublishStatusMessage('Publicando...')
+
     try {
       if (isSupabaseConfigured) {
         setGalleryMutationPending(true)
@@ -527,12 +538,19 @@ function App() {
         ...current,
         publishedContent: structuredClone(current.draftContent),
       }))
+      setPublishStatus('success')
+      setPublishStatusMessage('Rascunhos enviados ao público')
       showToast('Alterações publicadas na página pública.')
     } catch (error) {
       console.error('Erro ao publicar alterações', error)
+      setPublishStatus('error')
+      setPublishStatusMessage(
+        error instanceof Error && error.message ? error.message : 'Falha ao publicar alterações',
+      )
       showToast(getReviewErrorMessage(error, 'Não foi possível publicar as alterações.'))
     } finally {
       setGalleryMutationPending(false)
+      setPublishPending(false)
     }
   }
 
@@ -1024,12 +1042,15 @@ function App() {
           }}
           onTextChange={handleTextChange}
           onMediaReplace={handleMediaReplace}
-          onPublish={handlePublish}
           onReviewStatusChange={handleReviewStatusChange}
           onReviewDelete={handleReviewDelete}
           onAddExtraPhotos={handleAddExtraPhotos}
           onUpdateExtraPhoto={handleUpdateExtraPhoto}
           onDeleteExtraPhoto={handleDeleteExtraPhoto}
+          publishPending={publishPending}
+          publishStatus={publishStatus}
+          publishStatusMessage={publishStatusMessage}
+          onPublish={handlePublish}
           supabaseMediaPending={supabaseMediaPending}
           supabaseMediaStatus={supabaseMediaStatus}
           supabaseMediaMessage={supabaseMediaMessage}
