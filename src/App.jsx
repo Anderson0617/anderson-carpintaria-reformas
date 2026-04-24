@@ -582,11 +582,6 @@ function App() {
       return
     }
 
-    const pendingAssets = collectPendingEditableMedia(siteState.draftContent)
-    const hasDraftGalleryEntries = galleryEntries.some((entry) => entry.status === 'draft')
-    const hasPendingSupabaseChanges =
-      Object.keys(pendingAssets).length > 0 || hasDraftGalleryEntries
-
     setGithubPublishPending(true)
     setGithubPublishStatus('pending')
     setGithubPublishMessage('Publicando...')
@@ -594,11 +589,7 @@ function App() {
     try {
       await publishGithubWorkflow(adminCredential)
       setGithubPublishStatus('success')
-      setGithubPublishMessage(
-        hasPendingSupabaseChanges
-          ? 'Publicado no GitHub. Há pendências no Supabase.'
-          : 'Publicado com sucesso',
-      )
+      setGithubPublishMessage('Publicado no GitHub')
     } catch (error) {
       console.error('Erro ao publicar no GitHub', error)
       setGithubPublishStatus('error')
