@@ -143,6 +143,38 @@ begin
 end;
 $$;
 
+create or replace function public.admin_publish_gallery_entries_by_ids(
+  admin_password text,
+  entry_ids uuid[]
+)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  affected_rows integer;
+begin
+  if admin_password <> '2805' then
+    raise exception 'Senha administrativa inválida.';
+  end if;
+
+  if coalesce(array_length(entry_ids, 1), 0) = 0 then
+    return 0;
+  end if;
+
+  update public.gallery_entries
+  set
+    status = 'published',
+    published_at = coalesce(published_at, timezone('utc'::text, now()))
+  where id = any(entry_ids)
+    and status = 'draft';
+
+  get diagnostics affected_rows = row_count;
+  return affected_rows;
+end;
+$$;
+
 create or replace function public.admin_delete_gallery_entry(entry_id uuid, admin_password text)
 returns void
 language plpgsql
@@ -167,12 +199,14 @@ revoke all on function public.admin_list_gallery_entries(text) from public;
 revoke all on function public.admin_insert_gallery_entry(text, text, text, text) from public;
 revoke all on function public.admin_update_gallery_entry_description(uuid, text, text) from public;
 revoke all on function public.admin_publish_gallery_entries(text) from public;
+revoke all on function public.admin_publish_gallery_entries_by_ids(text, uuid[]) from public;
 revoke all on function public.admin_delete_gallery_entry(uuid, text) from public;
 
 grant execute on function public.admin_list_gallery_entries(text) to anon;
 grant execute on function public.admin_insert_gallery_entry(text, text, text, text) to anon;
 grant execute on function public.admin_update_gallery_entry_description(uuid, text, text) to anon;
 grant execute on function public.admin_publish_gallery_entries(text) to anon;
+grant execute on function public.admin_publish_gallery_entries_by_ids(text, uuid[]) to anon;
 grant execute on function public.admin_delete_gallery_entry(uuid, text) to anon;
 
 create table if not exists public.editable_media_assets (
@@ -232,3 +266,5 @@ $$;
 
 revoke all on function public.admin_upsert_editable_media_asset(text, text, text) from public;
 grant execute on function public.admin_upsert_editable_media_asset(text, text, text) to anon;
+
+NOTIFY pgrst, 'reload schema';

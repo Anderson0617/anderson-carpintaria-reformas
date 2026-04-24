@@ -22,7 +22,7 @@ import {
   groupGalleryEntries,
   listAdminGalleryEntries,
   listPublicGalleryEntries,
-  publishGalleryEntries as publishSupabaseGalleryEntries,
+  publishGalleryEntriesByIds as publishSupabaseGalleryEntriesByIds,
   updateGalleryEntryDescription,
   uploadGalleryEntry,
 } from './lib/gallery'
@@ -512,25 +512,18 @@ function App() {
     })
   }
 
-  async function handlePublish() {
+  async function publishSelectedGalleryEntries(entryIds) {
     try {
-      if (isSupabaseConfigured) {
+      if (isSupabaseConfigured && entryIds.length) {
         setGalleryMutationPending(true)
-        await publishSupabaseGalleryEntries(SITE_PASSWORD)
+        await publishSupabaseGalleryEntriesByIds(SITE_PASSWORD, entryIds)
         await Promise.all([
           refreshAdminGalleryEntries({ silent: true }),
           refreshPublicGalleryEntries({ silent: true }),
         ])
       }
-
-      setSiteState((current) => ({
-        ...current,
-        publishedContent: structuredClone(current.draftContent),
-      }))
-      showToast('Alterações publicadas na página pública.')
     } catch (error) {
-      console.error('Erro ao publicar alterações', error)
-      showToast(getReviewErrorMessage(error, 'Não foi possível publicar as alterações.'))
+      console.error('Erro ao publicar fotos da galeria', error)
       throw error
     } finally {
       setGalleryMutationPending(false)
@@ -601,7 +594,7 @@ function App() {
     }
   }
 
-  async function savePendingSupabaseChanges() {
+  async function savePendingSupabaseChanges(selectedGalleryEntryIds = []) {
     if (!isSupabaseConfigured) {
       setSupabaseMediaStatus('error')
       setSupabaseMediaMessage('Supabase não configurado.')
@@ -615,11 +608,13 @@ function App() {
     }
 
     const pendingAssets = collectPendingEditableMedia(siteState.draftContent)
-    const hasDraftGalleryEntries = galleryEntries.some((entry) => entry.status === 'draft')
+    const selectedDraftGalleryEntryIds = galleryEntries
+      .filter((entry) => entry.status === 'draft' && selectedGalleryEntryIds.includes(entry.id))
+      .map((entry) => entry.id)
 
-    if (!Object.keys(pendingAssets).length && !hasDraftGalleryEntries) {
+    if (!Object.keys(pendingAssets).length && !selectedDraftGalleryEntryIds.length) {
       setSupabaseMediaStatus('idle')
-      setSupabaseMediaMessage('Nenhuma alteração pendente para salvar no Supabase.')
+      setSupabaseMediaMessage('Nenhuma alteração marcada para publicar no Supabase.')
       return {
         savedEditableMedia: false,
         publishedGalleryDrafts: false,
@@ -648,8 +643,8 @@ function App() {
       savedEditableMedia = true
     }
 
-    if (hasDraftGalleryEntries) {
-      await handlePublish()
+    if (selectedDraftGalleryEntryIds.length) {
+      await publishSelectedGalleryEntries(selectedDraftGalleryEntryIds)
       publishedGalleryDrafts = true
     }
 
@@ -659,7 +654,7 @@ function App() {
     } else if (savedEditableMedia) {
       setSupabaseMediaMessage('Mídias editáveis salvas no Supabase.')
     } else if (publishedGalleryDrafts) {
-      setSupabaseMediaMessage('Rascunhos da galeria enviados ao público.')
+      setSupabaseMediaMessage('Fotos marcadas como "Subir" foram publicadas.')
     }
 
     return {
@@ -668,7 +663,7 @@ function App() {
     }
   }
 
-  async function handleSupabaseMediaUpload() {
+  async function handleSupabaseMediaUpload(selectedGalleryEntryIds) {
     if (supabaseMediaPending) {
       return
     }
@@ -678,7 +673,7 @@ function App() {
     setSupabaseMediaMessage('Salvando...')
 
     try {
-      await savePendingSupabaseChanges()
+      await savePendingSupabaseChanges(selectedGalleryEntryIds)
     } catch (error) {
       console.error('Erro ao subir mídia para o Supabase', error)
       setSupabaseMediaStatus('error')

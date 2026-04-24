@@ -977,13 +977,6 @@ textarea {
   gap: 8px;
 }
 
-.admin-section-help {
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: 0.92rem;
-  line-height: 1.5;
-}
-
 .file-trigger {
   position: relative;
   overflow: hidden;
@@ -1022,6 +1015,36 @@ textarea {
   color: #bfd5fb;
   font-size: 0.92rem;
   line-height: 1.45;
+}
+
+.admin-photo-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-photo-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(137, 177, 255, 0.18);
+  background: rgba(12, 21, 36, 0.8);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.92rem;
+}
+
+.admin-photo-control input {
+  margin: 0;
+}
+
+.admin-photo-control.is-active {
+  border-color: rgba(137, 177, 255, 0.45);
+  color: var(--text);
+  background: rgba(18, 33, 58, 0.92);
 }
 
 .admin-review-card {
@@ -1137,6 +1160,10 @@ textarea {
   .admin-media-grid,
   .admin-photo-list,
   .review-public {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-photo-controls {
     grid-template-columns: 1fr;
   }
 

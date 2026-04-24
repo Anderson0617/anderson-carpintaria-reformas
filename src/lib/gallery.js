@@ -142,6 +142,18 @@ export async function publishGalleryEntries(adminPassword) {
   }
 }
 
+export async function publishGalleryEntriesByIds(adminPassword, entryIds) {
+  const supabase = getSupabaseClient()
+  const { error } = await supabase.rpc('admin_publish_gallery_entries_by_ids', {
+    admin_password: adminPassword,
+    entry_ids: entryIds,
+  })
+
+  if (error) {
+    throw error
+  }
+}
+
 export async function deleteGalleryEntry(entry, adminPassword) {
   const supabase = getSupabaseClient()
   const { error } = await supabase.rpc('admin_delete_gallery_entry', {

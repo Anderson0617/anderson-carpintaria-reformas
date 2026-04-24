@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { fileToDataUrl } from '../lib/storage'
 import { formatApproxRegion } from '../lib/location'
 
@@ -88,10 +88,17 @@ function VisitorsPanel({ visitCount, visits, loading }) {
   )
 }
 
-function ExtraPhotoManager({ title, items, category, disabled, onAdd, onUpdate, onDelete }) {
-  const draftCount = items.filter((item) => item.status !== 'published').length
-  const publishedCount = items.length - draftCount
-
+function ExtraPhotoManager({
+  title,
+  items,
+  category,
+  disabled,
+  selections,
+  onAdd,
+  onUpdate,
+  onDelete,
+  onSelectionChange,
+}) {
   async function handleUpload(event) {
     const files = Array.from(event.target.files || [])
     if (!files.length) {
@@ -108,13 +115,6 @@ function ExtraPhotoManager({ title, items, category, disabled, onAdd, onUpdate, 
         <div>
           <span className="panel__label">{title}</span>
           <h3>Novas fotos</h3>
-          <p className="admin-section-help">
-            {draftCount
-              ? `${draftCount} rascunho(s) nesta seção. Clique em "Salvar no Supabase" para aparecer no público.`
-              : publishedCount
-                ? `${publishedCount} foto(s) desta seção já estão visíveis no público.`
-                : 'As fotos desta seção aparecem no público depois de "Salvar no Supabase".'}
-          </p>
         </div>
         <label className="button button--ghost button--small file-trigger">
           Subir fotos
@@ -127,12 +127,40 @@ function ExtraPhotoManager({ title, items, category, disabled, onAdd, onUpdate, 
           items.map((item) => (
             <article className="admin-photo-card" key={item.id}>
               <img src={item.src} alt={item.name || title} />
-              <p className="panel__label">{item.status === 'published' ? 'Publicado' : 'Rascunho'}</p>
-              <p className="admin-photo-card__hint">
-                {item.status === 'published'
-                  ? 'Esta foto já está visível no público nesta seção.'
-                  : 'Esta foto ainda não está pública. Falta clicar em "Salvar no Supabase".'}
-              </p>
+              <p className="panel__label">{item.status === 'published' ? 'ESTÁ PÚBLICO' : 'PENDENTE'}</p>
+              {item.status === 'published' ? (
+                <p className="admin-photo-card__hint">Esta foto já está visível no público nesta seção.</p>
+              ) : (
+                <>
+                  <div className="admin-photo-controls" role="group" aria-label={`Publicação da foto ${item.name || title}`}>
+                    <label className={`admin-photo-control ${selections[item.id] !== 'publish' ? 'is-active' : ''}`}>
+                      <input
+                        type="radio"
+                        name={`gallery-entry-${item.id}`}
+                        checked={selections[item.id] !== 'publish'}
+                        disabled={disabled}
+                        onChange={() => onSelectionChange(item.id, 'pending')}
+                      />
+                      <span>Deixar pendente</span>
+                    </label>
+                    <label className={`admin-photo-control ${selections[item.id] === 'publish' ? 'is-active' : ''}`}>
+                      <input
+                        type="radio"
+                        name={`gallery-entry-${item.id}`}
+                        checked={selections[item.id] === 'publish'}
+                        disabled={disabled}
+                        onChange={() => onSelectionChange(item.id, 'publish')}
+                      />
+                      <span>Subir</span>
+                    </label>
+                  </div>
+                  <p className="admin-photo-card__hint">
+                    {selections[item.id] === 'publish'
+                      ? 'Marcada para ir ao público em "Publicar no Supabase".'
+                      : 'Esta foto continua só no ADM até você marcar "Subir".'}
+                  </p>
+                </>
+              )}
               <textarea
                 rows="3"
                 placeholder="Texto ou descrição desta foto"
@@ -182,6 +210,23 @@ function AdminPanel({
   onGithubPublish,
 }) {
   const [filter, setFilter] = useState('all')
+  const [gallerySelections, setGallerySelections] = useState({})
+
+  useEffect(() => {
+    const allItems = [...extraPhotos.carpintaria, ...extraPhotos.alvenaria]
+
+    setGallerySelections((current) => {
+      const next = {}
+
+      allItems.forEach((item) => {
+        if (item.status !== 'published') {
+          next[item.id] = current[item.id] === 'publish' ? 'publish' : 'pending'
+        }
+      })
+
+      return next
+    })
+  }, [extraPhotos])
 
   const filteredReviews = useMemo(() => {
     const ordered = [...reviews].sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
@@ -221,7 +266,11 @@ function AdminPanel({
   }
 
   async function handleSupabaseMediaUploadClick() {
-    await onSupabaseMediaUpload()
+    const selectedGalleryEntryIds = [...extraPhotos.carpintaria, ...extraPhotos.alvenaria]
+      .filter((item) => item.status !== 'published' && gallerySelections[item.id] === 'publish')
+      .map((item) => item.id)
+
+    await onSupabaseMediaUpload(selectedGalleryEntryIds)
   }
 
   return (
@@ -284,9 +333,16 @@ function AdminPanel({
           category="carpintaria"
           items={extraPhotos.carpintaria}
           disabled={extraPhotosLoading || extraPhotoActionPending}
+          selections={gallerySelections}
           onAdd={onAddExtraPhotos}
           onUpdate={onUpdateExtraPhoto}
           onDelete={onDeleteExtraPhoto}
+          onSelectionChange={(id, value) =>
+            setGallerySelections((current) => ({
+              ...current,
+              [id]: value,
+            }))
+          }
         />
 
         <ExtraPhotoManager
@@ -294,9 +350,16 @@ function AdminPanel({
           category="alvenaria"
           items={extraPhotos.alvenaria}
           disabled={extraPhotosLoading || extraPhotoActionPending}
+          selections={gallerySelections}
           onAdd={onAddExtraPhotos}
           onUpdate={onUpdateExtraPhoto}
           onDelete={onDeleteExtraPhoto}
+          onSelectionChange={(id, value) =>
+            setGallerySelections((current) => ({
+              ...current,
+              [id]: value,
+            }))
+          }
         />
 
         <section className="panel admin-block">
