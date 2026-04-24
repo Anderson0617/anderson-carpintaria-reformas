@@ -982,7 +982,16 @@ function App() {
             <p className="section-copy__label">Acesso restrito</p>
             <h3>Senha do ADM</h3>
             <input
+              type="text"
+              name="username"
+              autoComplete="username"
+              tabIndex={-1}
+              aria-hidden="true"
+              className="sr-only"
+            />
+            <input
               type="password"
+              name="current-password"
               inputMode="numeric"
               autoComplete="new-password"
               value={passwordValue}

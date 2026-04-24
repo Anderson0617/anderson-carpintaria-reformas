@@ -1,0 +1,49 @@
+warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'cloudflare-worker/github-publish-worker.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'dist/index.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/.vite/deps/_metadata.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/.vite/deps/react-dom.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/.vite/deps/react-dom_client.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/.vite/deps/react-dom_client.js.map', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/.vite/deps/react.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/.vite/deps/react_jsx-dev-runtime.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/.vite/deps/react_jsx-dev-runtime.js.map', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/.vite/deps/react_jsx-runtime.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/.vite/deps/react_jsx-runtime.js.map', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/.yarn-integrity', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/@esbuild/win32-x64/package.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/esbuild/bin/esbuild', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/esbuild/lib/main.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/esbuild/package.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'node_modules/vite/node_modules/.bin/esbuild', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'package.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'yarn.lock', LF will be replaced by CRLF the next time Git touches it
+.gitignore
+cloudflare-worker/github-publish-worker.js
+dist/assets/index-BlGx853D.css
+dist/assets/index-BvNVv5G3.js
+dist/index.html
+node_modules/.vite/deps/_metadata.json
+node_modules/.vite/deps/chunk-3KWXTMT2.js
+node_modules/.vite/deps/chunk-3KWXTMT2.js.map
+node_modules/.vite/deps/chunk-IE4PWAYX.js
+node_modules/.vite/deps/chunk-IE4PWAYX.js.map
+node_modules/.vite/deps/react-dom.js
+node_modules/.vite/deps/react-dom_client.js
+node_modules/.vite/deps/react-dom_client.js.map
+node_modules/.vite/deps/react.js
+node_modules/.vite/deps/react_jsx-dev-runtime.js
+node_modules/.vite/deps/react_jsx-dev-runtime.js.map
+node_modules/.vite/deps/react_jsx-runtime.js
+node_modules/.vite/deps/react_jsx-runtime.js.map
+node_modules/.yarn-integrity
+node_modules/@esbuild/win32-x64/esbuild.exe
+node_modules/@esbuild/win32-x64/package.json
+node_modules/esbuild/bin/esbuild
+node_modules/esbuild/lib/main.js
+node_modules/esbuild/package.json
+node_modules/vite/node_modules/.bin/esbuild
+node_modules/vite/node_modules/.bin/esbuild.cmd
+package.json
+vite.config.js
+yarn.lock
