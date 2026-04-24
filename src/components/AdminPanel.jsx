@@ -158,13 +158,9 @@ function AdminPanel({
   extraPhotos,
   extraPhotosLoading,
   extraPhotoActionPending,
-  publishPending,
-  publishStatus,
-  publishStatusMessage,
   onClose,
   onTextChange,
   onMediaReplace,
-  onPublish,
   onReviewStatusChange,
   onReviewDelete,
   onAddExtraPhotos,
@@ -220,10 +216,6 @@ function AdminPanel({
 
   async function handleSupabaseMediaUploadClick() {
     await onSupabaseMediaUpload()
-  }
-
-  async function handlePublishClick() {
-    await onPublish()
   }
 
   return (
@@ -360,21 +352,9 @@ function AdminPanel({
                 disabled={supabaseMediaPending}
                 onClick={handleSupabaseMediaUploadClick}
               >
-                {supabaseMediaPending ? 'Enviando...' : 'Subir para o Supabase'}
+                {supabaseMediaPending ? 'Salvando...' : 'Salvar no Supabase'}
               </button>
               <p className={`admin-footer__status is-${supabaseMediaStatus}`}>{supabaseMediaMessage}</p>
-            </div>
-
-            <div className="admin-footer__publish">
-              <button
-                type="button"
-                className="button"
-                disabled={publishPending}
-                onClick={handlePublishClick}
-              >
-                {publishPending ? 'Publicando...' : 'Publicar alterações'}
-              </button>
-              <p className={`admin-footer__status is-${publishStatus}`}>{publishStatusMessage}</p>
             </div>
 
             <div className="admin-footer__publish">
