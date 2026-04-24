@@ -37,17 +37,8 @@ function getByPath(source, path) {
 function ReviewActions({ review, onStatusChange, onDelete, disabled }) {
   return (
     <div className="admin-review-actions">
-      <button type="button" disabled={disabled} onClick={() => onStatusChange(review.id, 'approved')}>
-        Mandar para público
-      </button>
       <button type="button" disabled={disabled} onClick={() => onStatusChange(review.id, 'pending')}>
         Deixar pendente
-      </button>
-      <button type="button" disabled={disabled} onClick={() => onStatusChange(review.id, 'hidden')}>
-        Ocultar
-      </button>
-      <button type="button" disabled={disabled} onClick={() => onStatusChange(review.id, 'private')}>
-        Privado
       </button>
       <button type="button" className="is-danger" disabled={disabled} onClick={() => onDelete(review.id)}>
         Excluir
@@ -367,9 +358,11 @@ function AdminPanel({
                 disabled={supabaseMediaPending}
                 onClick={handleSupabaseMediaUploadClick}
               >
-                {supabaseMediaPending ? 'Salvando...' : 'Salvar no Supabase'}
+                {supabaseMediaPending ? 'Publicando...' : 'Publicar no Supabase'}
               </button>
-              <p className={`admin-footer__status is-${supabaseMediaStatus}`}>{supabaseMediaMessage}</p>
+              {supabaseMediaMessage ? (
+                <p className={`admin-footer__status is-${supabaseMediaStatus}`}>{supabaseMediaMessage}</p>
+              ) : null}
             </div>
 
             <div className="admin-footer__publish">
