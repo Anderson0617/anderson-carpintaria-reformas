@@ -34,12 +34,42 @@ function getByPath(source, path) {
   return path.split('.').reduce((accumulator, key) => accumulator[key], source)
 }
 
-function ReviewActions({ review, onStatusChange, onDelete, disabled }) {
+function ReviewActions({ review, selection, onSelectionChange, onDelete, disabled }) {
   return (
     <div className="admin-review-actions">
-      <button type="button" disabled={disabled} onClick={() => onStatusChange(review.id, 'pending')}>
-        Deixar pendente
-      </button>
+      {review.status === 'approved' ? (
+        <p className="admin-photo-card__hint">Esta avaliação já está visível no público.</p>
+      ) : (
+        <>
+          <div className="admin-photo-controls" role="group" aria-label={`Publicação da avaliação ${review.id}`}>
+            <label className={`admin-photo-control ${selection !== 'publish' ? 'is-active' : ''}`}>
+              <input
+                type="radio"
+                name={`review-${review.id}`}
+                checked={selection !== 'publish'}
+                disabled={disabled}
+                onChange={() => onSelectionChange(review.id, 'pending')}
+              />
+              <span>Deixar pendente</span>
+            </label>
+            <label className={`admin-photo-control ${selection === 'publish' ? 'is-active' : ''}`}>
+              <input
+                type="radio"
+                name={`review-${review.id}`}
+                checked={selection === 'publish'}
+                disabled={disabled}
+                onChange={() => onSelectionChange(review.id, 'publish')}
+              />
+              <span>Subir</span>
+            </label>
+          </div>
+          <p className="admin-photo-card__hint">
+            {selection === 'publish'
+              ? 'Marcada para ir ao público em "Publicar no Supabase".'
+              : 'Esta avaliação continua fora do público até você marcar "Subir".'}
+          </p>
+        </>
+      )}
       <button type="button" className="is-danger" disabled={disabled} onClick={() => onDelete(review.id)}>
         Excluir
       </button>
@@ -195,7 +225,6 @@ function AdminPanel({
   onClose,
   onTextChange,
   onMediaReplace,
-  onReviewStatusChange,
   onReviewDelete,
   onAddExtraPhotos,
   onUpdateExtraPhoto,
@@ -211,6 +240,7 @@ function AdminPanel({
 }) {
   const [filter, setFilter] = useState('all')
   const [gallerySelections, setGallerySelections] = useState({})
+  const [reviewSelections, setReviewSelections] = useState({})
 
   useEffect(() => {
     const allItems = [...extraPhotos.carpintaria, ...extraPhotos.alvenaria]
@@ -227,6 +257,20 @@ function AdminPanel({
       return next
     })
   }, [extraPhotos])
+
+  useEffect(() => {
+    setReviewSelections((current) => {
+      const next = {}
+
+      reviews.forEach((review) => {
+        if (review.status !== 'approved') {
+          next[review.id] = current[review.id] === 'publish' ? 'publish' : 'pending'
+        }
+      })
+
+      return next
+    })
+  }, [reviews])
 
   const filteredReviews = useMemo(() => {
     const ordered = [...reviews].sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
@@ -269,8 +313,11 @@ function AdminPanel({
     const selectedGalleryEntryIds = [...extraPhotos.carpintaria, ...extraPhotos.alvenaria]
       .filter((item) => item.status !== 'published' && gallerySelections[item.id] === 'publish')
       .map((item) => item.id)
+    const selectedReviewIds = reviews
+      .filter((review) => review.status !== 'approved' && reviewSelections[review.id] === 'publish')
+      .map((review) => review.id)
 
-    await onSupabaseMediaUpload(selectedGalleryEntryIds)
+    await onSupabaseMediaUpload(selectedGalleryEntryIds, selectedReviewIds)
   }
 
   return (
@@ -400,8 +447,14 @@ function AdminPanel({
                   <p className="admin-review-card__region">Região: {formatApproxRegion(review)}</p>
                   <ReviewActions
                     review={review}
+                    selection={reviewSelections[review.id]}
                     disabled={reviewActionPending}
-                    onStatusChange={onReviewStatusChange}
+                    onSelectionChange={(id, value) =>
+                      setReviewSelections((current) => ({
+                        ...current,
+                        [id]: value,
+                      }))
+                    }
                     onDelete={onReviewDelete}
                   />
                 </article>

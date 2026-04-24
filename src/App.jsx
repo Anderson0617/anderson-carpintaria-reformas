@@ -594,7 +594,7 @@ function App() {
     }
   }
 
-  async function savePendingSupabaseChanges(selectedGalleryEntryIds = []) {
+  async function savePendingSupabaseChanges(selectedGalleryEntryIds = [], selectedReviewIds = []) {
     if (!isSupabaseConfigured) {
       setSupabaseMediaStatus('error')
       setSupabaseMediaMessage('Supabase não configurado.')
@@ -611,18 +611,23 @@ function App() {
     const selectedDraftGalleryEntryIds = galleryEntries
       .filter((entry) => entry.status === 'draft' && selectedGalleryEntryIds.includes(entry.id))
       .map((entry) => entry.id)
+    const selectedPendingReviewIds = reviews
+      .filter((review) => review.status !== 'approved' && selectedReviewIds.includes(review.id))
+      .map((review) => review.id)
 
-    if (!Object.keys(pendingAssets).length && !selectedDraftGalleryEntryIds.length) {
+    if (!Object.keys(pendingAssets).length && !selectedDraftGalleryEntryIds.length && !selectedPendingReviewIds.length) {
       setSupabaseMediaStatus('idle')
       setSupabaseMediaMessage('Nenhuma alteração marcada para publicar no Supabase.')
       return {
         savedEditableMedia: false,
         publishedGalleryDrafts: false,
+        publishedReviews: false,
       }
     }
 
     let savedEditableMedia = false
     let publishedGalleryDrafts = false
+    let publishedReviews = false
 
     const uploadedUrls = await uploadEditableMediaAssets({
       assets: pendingAssets,
@@ -648,22 +653,47 @@ function App() {
       publishedGalleryDrafts = true
     }
 
+    if (selectedPendingReviewIds.length) {
+      setReviewMutationPending(true)
+
+      try {
+        await Promise.all(
+          selectedPendingReviewIds.map((reviewId) =>
+            updateSupabaseReviewStatus(reviewId, 'approved', SITE_PASSWORD),
+          ),
+        )
+        await Promise.all([refreshAdminReviews({ silent: true }), refreshPublicReviews({ silent: true })])
+        publishedReviews = true
+      } finally {
+        setReviewMutationPending(false)
+      }
+    }
+
     setSupabaseMediaStatus('success')
-    if (savedEditableMedia && publishedGalleryDrafts) {
-      setSupabaseMediaMessage('Mídias e galeria salvas no Supabase.')
+    if (savedEditableMedia && publishedGalleryDrafts && publishedReviews) {
+      setSupabaseMediaMessage('Mídias, fotos e avaliações foram publicadas no Supabase.')
+    } else if (savedEditableMedia && publishedGalleryDrafts) {
+      setSupabaseMediaMessage('Mídias e fotos foram publicadas no Supabase.')
+    } else if (savedEditableMedia && publishedReviews) {
+      setSupabaseMediaMessage('Mídias e avaliações foram publicadas no Supabase.')
+    } else if (publishedGalleryDrafts && publishedReviews) {
+      setSupabaseMediaMessage('Fotos e avaliações marcadas como "Subir" foram publicadas.')
     } else if (savedEditableMedia) {
       setSupabaseMediaMessage('Mídias editáveis salvas no Supabase.')
     } else if (publishedGalleryDrafts) {
       setSupabaseMediaMessage('Fotos marcadas como "Subir" foram publicadas.')
+    } else if (publishedReviews) {
+      setSupabaseMediaMessage('Avaliações marcadas como "Subir" foram publicadas.')
     }
 
     return {
       savedEditableMedia,
       publishedGalleryDrafts,
+      publishedReviews,
     }
   }
 
-  async function handleSupabaseMediaUpload(selectedGalleryEntryIds) {
+  async function handleSupabaseMediaUpload(selectedGalleryEntryIds, selectedReviewIds) {
     if (supabaseMediaPending) {
       return
     }
@@ -673,7 +703,7 @@ function App() {
     setSupabaseMediaMessage('Salvando...')
 
     try {
-      await savePendingSupabaseChanges(selectedGalleryEntryIds)
+      await savePendingSupabaseChanges(selectedGalleryEntryIds, selectedReviewIds)
     } catch (error) {
       console.error('Erro ao subir mídia para o Supabase', error)
       setSupabaseMediaStatus('error')
@@ -1057,7 +1087,6 @@ function App() {
           }}
           onTextChange={handleTextChange}
           onMediaReplace={handleMediaReplace}
-          onReviewStatusChange={handleReviewStatusChange}
           onReviewDelete={handleReviewDelete}
           onAddExtraPhotos={handleAddExtraPhotos}
           onUpdateExtraPhoto={handleUpdateExtraPhoto}
