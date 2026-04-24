@@ -98,6 +98,9 @@ function VisitorsPanel({ visitCount, visits, loading }) {
 }
 
 function ExtraPhotoManager({ title, items, category, disabled, onAdd, onUpdate, onDelete }) {
+  const draftCount = items.filter((item) => item.status !== 'published').length
+  const publishedCount = items.length - draftCount
+
   async function handleUpload(event) {
     const files = Array.from(event.target.files || [])
     if (!files.length) {
@@ -114,6 +117,13 @@ function ExtraPhotoManager({ title, items, category, disabled, onAdd, onUpdate, 
         <div>
           <span className="panel__label">{title}</span>
           <h3>Novas fotos</h3>
+          <p className="admin-section-help">
+            {draftCount
+              ? `${draftCount} rascunho(s) nesta seção. Clique em "Salvar no Supabase" para aparecer no público.`
+              : publishedCount
+                ? `${publishedCount} foto(s) desta seção já estão visíveis no público.`
+                : 'As fotos desta seção aparecem no público depois de "Salvar no Supabase".'}
+          </p>
         </div>
         <label className="button button--ghost button--small file-trigger">
           Subir fotos
@@ -127,6 +137,11 @@ function ExtraPhotoManager({ title, items, category, disabled, onAdd, onUpdate, 
             <article className="admin-photo-card" key={item.id}>
               <img src={item.src} alt={item.name || title} />
               <p className="panel__label">{item.status === 'published' ? 'Publicado' : 'Rascunho'}</p>
+              <p className="admin-photo-card__hint">
+                {item.status === 'published'
+                  ? 'Esta foto já está visível no público nesta seção.'
+                  : 'Esta foto ainda não está pública. Falta clicar em "Salvar no Supabase".'}
+              </p>
               <textarea
                 rows="3"
                 placeholder="Texto ou descrição desta foto"

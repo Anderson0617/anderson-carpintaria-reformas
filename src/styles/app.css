@@ -977,6 +977,13 @@ textarea {
   gap: 8px;
 }
 
+.admin-section-help {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
 .file-trigger {
   position: relative;
   overflow: hidden;
@@ -1008,6 +1015,13 @@ textarea {
   aspect-ratio: 1 / 1;
   object-fit: cover;
   border-radius: 16px;
+}
+
+.admin-photo-card__hint {
+  margin: -4px 0 0;
+  color: #bfd5fb;
+  font-size: 0.92rem;
+  line-height: 1.45;
 }
 
 .admin-review-card {

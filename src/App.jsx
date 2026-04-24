@@ -169,7 +169,8 @@ function App() {
   const [githubPublishMessage, setGithubPublishMessage] = useState('Aguardando')
   const [supabaseMediaPending, setSupabaseMediaPending] = useState(false)
   const [supabaseMediaStatus, setSupabaseMediaStatus] = useState('idle')
-  const [supabaseMediaMessage, setSupabaseMediaMessage] = useState('Salva mídias e galeria')
+  const [supabaseMediaMessage, setSupabaseMediaMessage] =
+    useState('Salva mídias editáveis e publica rascunhos de Novas fotos.')
   const mobileMenuRef = useRef(null)
   const serviceGridRef = useRef(null)
   const publishTimeoutRef = useRef(null)
