@@ -584,9 +584,13 @@ function App() {
 
     setGithubPublishPending(true)
     setGithubPublishStatus('pending')
-    setGithubPublishMessage('Publicando...')
+    setGithubPublishMessage('Salvando e publicando...')
+    setSupabaseMediaPending(true)
+    setSupabaseMediaStatus('pending')
+    setSupabaseMediaMessage('Salvando...')
 
     try {
+      await savePendingSupabaseChanges()
       await publishGithubWorkflow(adminCredential)
       setGithubPublishStatus('success')
       setGithubPublishMessage('Publicado com sucesso')
@@ -597,25 +601,22 @@ function App() {
         error instanceof Error && error.message ? error.message : 'Falha ao publicar',
       )
     } finally {
+      setSupabaseMediaPending(false)
       setGithubPublishPending(false)
     }
   }
 
-  async function handleSupabaseMediaUpload() {
-    if (supabaseMediaPending) {
-      return
-    }
-
+  async function savePendingSupabaseChanges() {
     if (!isSupabaseConfigured) {
       setSupabaseMediaStatus('error')
       setSupabaseMediaMessage('Supabase não configurado.')
-      return
+      throw new Error('Supabase não configurado.')
     }
 
     if (!adminCredential) {
       setSupabaseMediaStatus('error')
       setSupabaseMediaMessage('Faça login no ADM novamente antes de enviar.')
-      return
+      throw new Error('Faça login no ADM novamente antes de enviar.')
     }
 
     const pendingAssets = collectPendingEditableMedia(siteState.draftContent)
@@ -624,6 +625,56 @@ function App() {
     if (!Object.keys(pendingAssets).length && !hasDraftGalleryEntries) {
       setSupabaseMediaStatus('idle')
       setSupabaseMediaMessage('Nenhuma alteração pendente para salvar no Supabase.')
+      return {
+        savedEditableMedia: false,
+        publishedGalleryDrafts: false,
+      }
+    }
+
+    let savedEditableMedia = false
+    let publishedGalleryDrafts = false
+
+    const uploadedUrls = await uploadEditableMediaAssets({
+      assets: pendingAssets,
+      adminPassword: adminCredential,
+    }).catch((error) => {
+      if (Object.keys(pendingAssets).length) {
+        throw error
+      }
+      return {}
+    })
+
+    if (Object.keys(uploadedUrls).length) {
+      setSiteState((current) => ({
+        ...mergeEditableMediaIntoState(current, uploadedUrls),
+        draftContent: applyEditableMediaOverrides(current.draftContent, uploadedUrls),
+      }))
+      await refreshPublicEditableMedia({ silent: true })
+      savedEditableMedia = true
+    }
+
+    if (hasDraftGalleryEntries) {
+      await handlePublish()
+      publishedGalleryDrafts = true
+    }
+
+    setSupabaseMediaStatus('success')
+    if (savedEditableMedia && publishedGalleryDrafts) {
+      setSupabaseMediaMessage('Mídias e galeria salvas no Supabase.')
+    } else if (savedEditableMedia) {
+      setSupabaseMediaMessage('Mídias editáveis salvas no Supabase.')
+    } else if (publishedGalleryDrafts) {
+      setSupabaseMediaMessage('Rascunhos da galeria enviados ao público.')
+    }
+
+    return {
+      savedEditableMedia,
+      publishedGalleryDrafts,
+    }
+  }
+
+  async function handleSupabaseMediaUpload() {
+    if (supabaseMediaPending) {
       return
     }
 
@@ -632,43 +683,7 @@ function App() {
     setSupabaseMediaMessage('Salvando...')
 
     try {
-      let savedEditableMedia = false
-      let publishedGalleryDrafts = false
-
-      const uploadedUrls = await uploadEditableMediaAssets({
-        assets: pendingAssets,
-        adminPassword: adminCredential,
-      }).catch((error) => {
-        if (Object.keys(pendingAssets).length) {
-          throw error
-        }
-        return {}
-      })
-
-      if (Object.keys(uploadedUrls).length) {
-        setSiteState((current) => ({
-          ...mergeEditableMediaIntoState(current, uploadedUrls),
-          draftContent: applyEditableMediaOverrides(current.draftContent, uploadedUrls),
-        }))
-        await refreshPublicEditableMedia({ silent: true })
-        savedEditableMedia = true
-      }
-
-      if (hasDraftGalleryEntries) {
-        await handlePublish()
-        publishedGalleryDrafts = true
-      }
-
-      setSupabaseMediaStatus('success')
-      if (savedEditableMedia && publishedGalleryDrafts) {
-        setSupabaseMediaMessage('Mídias e galeria salvas no Supabase.')
-      } else if (savedEditableMedia) {
-        setSupabaseMediaMessage('Mídias editáveis salvas no Supabase.')
-      } else if (publishedGalleryDrafts) {
-        setSupabaseMediaMessage('Rascunhos da galeria enviados ao público.')
-      } else {
-        setSupabaseMediaMessage('Nenhuma alteração pendente para salvar no Supabase.')
-      }
+      await savePendingSupabaseChanges()
     } catch (error) {
       console.error('Erro ao subir mídia para o Supabase', error)
       setSupabaseMediaStatus('error')
