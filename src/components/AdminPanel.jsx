@@ -35,10 +35,21 @@ function getByPath(source, path) {
 }
 
 function ReviewActions({ review, selection, onSelectionChange, onDelete, disabled }) {
+  const isPublic = review.isPublic
+  const isGithubOnly = review.isPublishedInGithub && !review.isPublishedInSupabase
+  const isSupabaseOnly = review.isPublishedInSupabase && !review.isPublishedInGithub
+  const isPublicInBoth = review.isPublishedInSupabase && review.isPublishedInGithub
+
   return (
     <div className="admin-review-actions">
-      {review.status === 'approved' ? (
-        <p className="admin-photo-card__hint">Esta avaliação já está visível no público.</p>
+      {isPublic ? (
+        <p className="admin-photo-card__hint">
+          {isPublicInBoth
+            ? 'Esta avaliação está pública no Supabase e no GitHub. Exclua no destino desejado.'
+            : isGithubOnly
+              ? 'Esta avaliação está pública pelo GitHub.'
+              : 'Esta avaliação está pública pelo Supabase.'}
+        </p>
       ) : (
         <>
           <div className="admin-photo-controls" role="group" aria-label={`Publicação da avaliação ${review.id}`}>
@@ -70,9 +81,44 @@ function ReviewActions({ review, selection, onSelectionChange, onDelete, disable
           </p>
         </>
       )}
-      <button type="button" className="is-danger" disabled={disabled} onClick={() => onDelete(review.id)}>
-        Excluir
-      </button>
+      {isPublicInBoth ? (
+        <>
+          <button
+            type="button"
+            className="is-danger"
+            disabled={disabled}
+            onClick={() => onDelete(review.id, 'supabase')}
+          >
+            Excluir do Supabase
+          </button>
+          <button
+            type="button"
+            className="is-danger"
+            disabled={disabled}
+            onClick={() => onDelete(review.id, 'github')}
+          >
+            Excluir do GitHub
+          </button>
+        </>
+      ) : isGithubOnly ? (
+        <button
+          type="button"
+          className="is-danger"
+          disabled={disabled}
+          onClick={() => onDelete(review.id, 'github')}
+        >
+          Excluir do GitHub
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="is-danger"
+          disabled={disabled}
+          onClick={() => onDelete(review.id, 'supabase')}
+        >
+          Excluir do Supabase
+        </button>
+      )}
     </div>
   )
 }
@@ -157,9 +203,15 @@ function ExtraPhotoManager({
           items.map((item) => (
             <article className="admin-photo-card" key={item.id}>
               <img src={item.src} alt={item.name || title} />
-              <p className="panel__label">{item.status === 'published' ? 'ESTÁ PÚBLICO' : 'PENDENTE'}</p>
-              {item.status === 'published' ? (
-                <p className="admin-photo-card__hint">Esta foto já está visível no público nesta seção.</p>
+              <p className="panel__label">{item.isPublic ? 'ESTÁ PÚBLICO' : 'PENDENTE'}</p>
+              {item.isPublic ? (
+                <p className="admin-photo-card__hint">
+                  {item.isPublishedInSupabase && item.isPublishedInGithub
+                    ? 'Esta foto está pública no Supabase e no GitHub. Exclua no destino desejado.'
+                    : item.isPublishedInGithub
+                      ? 'Esta foto está visível no público pelo GitHub.'
+                      : 'Esta foto está visível no público pelo Supabase.'}
+                </p>
               ) : (
                 <>
                   <div className="admin-photo-controls" role="group" aria-label={`Publicação da foto ${item.name || title}`}>
@@ -195,12 +247,47 @@ function ExtraPhotoManager({
                 rows="3"
                 placeholder="Texto ou descrição desta foto"
                 value={item.description}
-                disabled={disabled}
+                disabled={disabled || !item.hasSupabaseRecord}
                 onChange={(event) => onUpdate(category, item.id, event.target.value)}
               />
-              <button type="button" className="is-danger" disabled={disabled} onClick={() => onDelete(category, item.id)}>
-                Excluir foto
-              </button>
+              {item.isPublishedInSupabase && item.isPublishedInGithub ? (
+                <>
+                  <button
+                    type="button"
+                    className="is-danger"
+                    disabled={disabled}
+                    onClick={() => onDelete(category, item.id, 'supabase')}
+                  >
+                    Excluir do Supabase
+                  </button>
+                  <button
+                    type="button"
+                    className="is-danger"
+                    disabled={disabled}
+                    onClick={() => onDelete(category, item.id, 'github')}
+                  >
+                    Excluir do GitHub
+                  </button>
+                </>
+              ) : item.isPublishedInGithub ? (
+                <button
+                  type="button"
+                  className="is-danger"
+                  disabled={disabled}
+                  onClick={() => onDelete(category, item.id, 'github')}
+                >
+                  Excluir do GitHub
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="is-danger"
+                  disabled={disabled}
+                  onClick={() => onDelete(category, item.id, 'supabase')}
+                >
+                  Excluir do Supabase
+                </button>
+              )}
             </article>
           ))
         ) : (
@@ -249,7 +336,7 @@ function AdminPanel({
       const next = {}
 
       allItems.forEach((item) => {
-        if (item.status !== 'published') {
+        if (!item.isPublic) {
           next[item.id] = current[item.id] === 'publish' ? 'publish' : 'pending'
         }
       })
@@ -263,7 +350,7 @@ function AdminPanel({
       const next = {}
 
       reviews.forEach((review) => {
-        if (review.status !== 'approved') {
+        if (!review.isPublic) {
           next[review.id] = current[review.id] === 'publish' ? 'publish' : 'pending'
         }
       })
@@ -307,10 +394,10 @@ function AdminPanel({
 
   async function handleGithubPublishClick() {
     const selectedGalleryEntryIds = [...extraPhotos.carpintaria, ...extraPhotos.alvenaria]
-      .filter((item) => item.status !== 'published' && gallerySelections[item.id] === 'publish')
+      .filter((item) => !item.isPublic && gallerySelections[item.id] === 'publish')
       .map((item) => item.id)
     const selectedReviewIds = reviews
-      .filter((review) => review.status !== 'approved' && reviewSelections[review.id] === 'publish')
+      .filter((review) => !review.isPublic && reviewSelections[review.id] === 'publish')
       .map((review) => review.id)
 
     await onGithubPublish(selectedGalleryEntryIds, selectedReviewIds)
@@ -318,10 +405,10 @@ function AdminPanel({
 
   async function handleSupabaseMediaUploadClick() {
     const selectedGalleryEntryIds = [...extraPhotos.carpintaria, ...extraPhotos.alvenaria]
-      .filter((item) => item.status !== 'published' && gallerySelections[item.id] === 'publish')
+      .filter((item) => !item.isPublic && gallerySelections[item.id] === 'publish')
       .map((item) => item.id)
     const selectedReviewIds = reviews
-      .filter((review) => review.status !== 'approved' && reviewSelections[review.id] === 'publish')
+      .filter((review) => !review.isPublic && reviewSelections[review.id] === 'publish')
       .map((review) => review.id)
 
     await onSupabaseMediaUpload(selectedGalleryEntryIds, selectedReviewIds)

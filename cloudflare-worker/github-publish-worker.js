@@ -334,7 +334,56 @@ function upsertReviewManifestEntry(manifest, entry) {
   return [entry, ...manifest.filter((item) => item.id !== entry.id)]
 }
 
-async function commitPublishedContent(env, { galleryItems = [], reviewItems = [] }) {
+function removeGalleryManifestEntries(manifest, entryIds) {
+  const ids = new Set(entryIds)
+  const deletedIds = []
+  const nextManifest = {
+    carpintaria: (manifest.carpintaria || []).filter((item) => {
+      if (ids.has(item.id)) {
+        deletedIds.push(item.id)
+        return false
+      }
+
+      return true
+    }),
+    alvenaria: (manifest.alvenaria || []).filter((item) => {
+      if (ids.has(item.id)) {
+        deletedIds.push(item.id)
+        return false
+      }
+
+      return true
+    }),
+  }
+
+  return {
+    nextManifest,
+    deletedIds: [...new Set(deletedIds)],
+  }
+}
+
+function removeReviewManifestEntries(manifest, reviewIds) {
+  const ids = new Set(reviewIds)
+  const deletedIds = []
+  const nextManifest = manifest.filter((item) => {
+    if (ids.has(item.id)) {
+      deletedIds.push(item.id)
+      return false
+    }
+
+    return true
+  })
+
+  return {
+    nextManifest,
+    deletedIds,
+  }
+}
+
+async function syncPublishedContent(
+  env,
+  { galleryItems = [], reviewItems = [], galleryIdsToDelete = [], reviewIdsToDelete = [] },
+) {
   const now = new Date().toISOString()
   const head = await getCurrentBranchHead(env)
   const currentCommitSha = head.object.sha
@@ -345,6 +394,8 @@ async function commitPublishedContent(env, { galleryItems = [], reviewItems = []
   const treeEntries = []
   const publishedGalleryItems = []
   const publishedReviewItems = []
+  const deletedGalleryIds = []
+  const deletedReviewIds = []
 
   for (const rawItem of galleryItems) {
     assertValidGalleryItem(rawItem)
@@ -394,7 +445,19 @@ async function commitPublishedContent(env, { galleryItems = [], reviewItems = []
     publishedReviewItems.push(manifestEntry)
   }
 
-  if (galleryItems.length) {
+  if (galleryIdsToDelete.length) {
+    const removal = removeGalleryManifestEntries(galleryManifest, galleryIdsToDelete)
+    galleryManifest = removal.nextManifest
+    deletedGalleryIds.push(...removal.deletedIds)
+  }
+
+  if (reviewIdsToDelete.length) {
+    const removal = removeReviewManifestEntries(reviewsManifest, reviewIdsToDelete)
+    reviewsManifest = removal.nextManifest
+    deletedReviewIds.push(...removal.deletedIds)
+  }
+
+  if (galleryItems.length || deletedGalleryIds.length) {
     const galleryJsonSha = await createBlob(env, `${JSON.stringify(galleryManifest, null, 2)}\n`, 'utf-8')
     treeEntries.push({
       path: GALLERY_JSON_PATH,
@@ -404,7 +467,7 @@ async function commitPublishedContent(env, { galleryItems = [], reviewItems = []
     })
   }
 
-  if (reviewItems.length) {
+  if (reviewItems.length || deletedReviewIds.length) {
     const reviewsJsonSha = await createBlob(env, `${JSON.stringify(reviewsManifest, null, 2)}\n`, 'utf-8')
     treeEntries.push({
       path: REVIEWS_JSON_PATH,
@@ -414,12 +477,31 @@ async function commitPublishedContent(env, { galleryItems = [], reviewItems = []
     })
   }
 
+  if (!treeEntries.length) {
+    throw new Error('Nenhum item publicado do GitHub corresponde à operação solicitada.')
+  }
+
   const nextTreeSha = await createTree(env, currentTreeSha, treeEntries)
+  const commitSummary = []
+
+  if (publishedGalleryItems.length) {
+    commitSummary.push(`publish ${publishedGalleryItems.length} gallery item(s)`)
+  }
+  if (publishedReviewItems.length) {
+    commitSummary.push(`publish ${publishedReviewItems.length} review(s)`)
+  }
+  if (deletedGalleryIds.length) {
+    commitSummary.push(`delete ${deletedGalleryIds.length} gallery item(s)`)
+  }
+  if (deletedReviewIds.length) {
+    commitSummary.push(`delete ${deletedReviewIds.length} review(s)`)
+  }
+
   const nextCommitSha = await createCommit(
     env,
     nextTreeSha,
     currentCommitSha,
-    `chore: publish ${publishedGalleryItems.length} gallery item(s) and ${publishedReviewItems.length} review(s) from admin`,
+    `chore: ${commitSummary.join(' and ')} from admin`,
   )
   await updateRef(env, nextCommitSha)
 
@@ -427,6 +509,8 @@ async function commitPublishedContent(env, { galleryItems = [], reviewItems = []
     commitSha: nextCommitSha,
     publishedGalleryItems,
     publishedReviewItems,
+    deletedGalleryIds,
+    deletedReviewIds,
   }
 }
 
@@ -497,11 +581,15 @@ export default {
 
       if (
         (Array.isArray(payload.galleryItems) && payload.galleryItems.length) ||
-        (Array.isArray(payload.reviewItems) && payload.reviewItems.length)
+        (Array.isArray(payload.reviewItems) && payload.reviewItems.length) ||
+        (Array.isArray(payload.galleryIdsToDelete) && payload.galleryIdsToDelete.length) ||
+        (Array.isArray(payload.reviewIdsToDelete) && payload.reviewIdsToDelete.length)
       ) {
-        const result = await commitPublishedContent(env, {
+        const result = await syncPublishedContent(env, {
           galleryItems: Array.isArray(payload.galleryItems) ? payload.galleryItems : [],
           reviewItems: Array.isArray(payload.reviewItems) ? payload.reviewItems : [],
+          galleryIdsToDelete: Array.isArray(payload.galleryIdsToDelete) ? payload.galleryIdsToDelete : [],
+          reviewIdsToDelete: Array.isArray(payload.reviewIdsToDelete) ? payload.reviewIdsToDelete : [],
         })
 
         return json(
@@ -515,6 +603,10 @@ export default {
             publishedGalleryIds: result.publishedGalleryItems.map((item) => item.id),
             publishedReviewCount: result.publishedReviewItems.length,
             publishedReviewIds: result.publishedReviewItems.map((item) => item.id),
+            deletedGalleryCount: result.deletedGalleryIds.length,
+            deletedGalleryIds: result.deletedGalleryIds,
+            deletedReviewCount: result.deletedReviewIds.length,
+            deletedReviewIds: result.deletedReviewIds,
           },
           200,
           corsHeaders,

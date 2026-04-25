@@ -95,6 +95,81 @@ function collectPendingEditableMedia(content) {
   )
 }
 
+function mergeAdminGallerySources(supabaseEntries, githubEntries, optimisticGithubIds) {
+  const supabaseById = new Map(supabaseEntries.map((entry) => [entry.id, entry]))
+  const githubById = new Map(githubEntries.map((entry) => [entry.id, entry]))
+  const ids = new Set([...supabaseById.keys(), ...githubById.keys(), ...optimisticGithubIds])
+
+  return [...ids].map((id) => {
+    const supabaseEntry = supabaseById.get(id)
+    const githubEntry = githubById.get(id)
+    const isPublishedInSupabase = supabaseEntry?.status === 'published'
+    const isPublishedInGithub = githubById.has(id) || optimisticGithubIds.includes(id)
+    const baseEntry = supabaseEntry ?? githubEntry
+
+    return {
+      ...baseEntry,
+      id,
+      category: supabaseEntry?.category ?? githubEntry?.category ?? 'carpintaria',
+      name: supabaseEntry?.name ?? githubEntry?.name ?? 'foto',
+      description: supabaseEntry?.description ?? githubEntry?.description ?? '',
+      src: supabaseEntry?.src ?? githubEntry?.src ?? '',
+      imagePath: supabaseEntry?.imagePath ?? githubEntry?.imagePath ?? '',
+      status: supabaseEntry?.status ?? (isPublishedInGithub ? 'published' : 'draft'),
+      createdAt:
+        supabaseEntry?.createdAt ??
+        githubEntry?.createdAt ??
+        githubEntry?.publishedAt ??
+        new Date().toISOString(),
+      publishedAt: supabaseEntry?.publishedAt ?? githubEntry?.publishedAt ?? null,
+      hasSupabaseRecord: Boolean(supabaseEntry),
+      hasGithubRecord: Boolean(githubEntry),
+      isPublishedInSupabase,
+      isPublishedInGithub,
+      isPublic: isPublishedInSupabase || isPublishedInGithub,
+    }
+  })
+}
+
+function mergeAdminReviewSources(supabaseReviews, githubReviews, optimisticGithubIds) {
+  const supabaseById = new Map(supabaseReviews.map((review) => [review.id, review]))
+  const githubById = new Map(githubReviews.map((review) => [review.id, review]))
+  const ids = new Set([...supabaseById.keys(), ...githubById.keys(), ...optimisticGithubIds])
+
+  return [...ids].map((id) => {
+    const supabaseReview = supabaseById.get(id)
+    const githubReview = githubById.get(id)
+    const isPublishedInSupabase = supabaseReview?.status === 'approved'
+    const isPublishedInGithub = githubById.has(id) || optimisticGithubIds.includes(id)
+    const baseReview = supabaseReview ?? githubReview
+
+    return {
+      ...baseReview,
+      id,
+      stars: supabaseReview?.stars ?? githubReview?.stars ?? 5,
+      comment: supabaseReview?.comment ?? githubReview?.comment ?? '',
+      status: supabaseReview?.status ?? (isPublishedInGithub ? 'approved' : 'pending'),
+      createdAt:
+        supabaseReview?.createdAt ??
+        githubReview?.createdAt ??
+        githubReview?.publishedAt ??
+        new Date().toISOString(),
+      country: supabaseReview?.country ?? githubReview?.country ?? null,
+      countryCode: supabaseReview?.countryCode ?? githubReview?.countryCode ?? null,
+      region: supabaseReview?.region ?? githubReview?.region ?? null,
+      regionCode: supabaseReview?.regionCode ?? githubReview?.regionCode ?? null,
+      city: supabaseReview?.city ?? githubReview?.city ?? null,
+      neighborhood: supabaseReview?.neighborhood ?? githubReview?.neighborhood ?? null,
+      precision: supabaseReview?.precision ?? githubReview?.precision ?? 'unknown',
+      hasSupabaseRecord: Boolean(supabaseReview),
+      hasGithubRecord: Boolean(githubReview),
+      isPublishedInSupabase,
+      isPublishedInGithub,
+      isPublic: isPublishedInSupabase || isPublishedInGithub,
+    }
+  })
+}
+
 function SectionDivider({ image, position = 'center' }) {
   return (
     <div className="section-divider">
@@ -599,21 +674,6 @@ function App() {
     }
   }
 
-  async function handleReviewDelete(id) {
-    setReviewMutationPending(true)
-
-    try {
-      await deleteSupabaseReview(id, SITE_PASSWORD)
-      setOptimisticGithubReviewIds((current) => current.filter((reviewId) => reviewId !== id))
-      await Promise.all([refreshAdminReviews({ silent: true }), refreshPublicReviews({ silent: true })])
-    } catch (error) {
-      console.error('Erro ao excluir avaliação', error)
-      showToast(getReviewErrorMessage(error, 'Não foi possível excluir a avaliação.'))
-    } finally {
-      setReviewMutationPending(false)
-    }
-  }
-
   async function handleGithubPublish(selectedGalleryEntryIds, selectedReviewIds) {
     if (githubPublishPending) {
       return
@@ -714,6 +774,81 @@ function App() {
       )
     } finally {
       setGithubPublishPending(false)
+    }
+  }
+
+  async function deleteGithubPublishedItems({ galleryIds = [], reviewIds = [] }) {
+    if (githubPublishPending) {
+      throw new Error('Aguarde a publicação atual terminar antes de excluir no GitHub.')
+    }
+
+    if (!isGithubPublishConfigured) {
+      throw new Error('Endpoint do Worker não configurado.')
+    }
+
+    if (!adminCredential) {
+      throw new Error('Faça login no ADM novamente antes de excluir no GitHub.')
+    }
+
+    if (!galleryIds.length && !reviewIds.length) {
+      throw new Error('Nenhum item do GitHub foi selecionado para exclusão.')
+    }
+
+    setGithubPublishPending(true)
+    setGithubPublishStatus('pending')
+    setGithubPublishMessage('Excluindo do GitHub...')
+
+    try {
+      const result = await publishGithubWorkflow(adminCredential, {
+        galleryIdsToDelete: galleryIds,
+        reviewIdsToDelete: reviewIds,
+      })
+
+      setOptimisticGithubGalleryIds((current) => current.filter((id) => !galleryIds.includes(id)))
+      setOptimisticGithubReviewIds((current) => current.filter((id) => !reviewIds.includes(id)))
+      setGithubPublishStatus('success')
+      setGithubPublishMessage('Excluído do GitHub')
+      await Promise.all([refreshGithubGalleryEntries({ silent: true }), refreshGithubPublicReviews({ silent: true })])
+      return result
+    } catch (error) {
+      console.error('Erro ao excluir item publicado no GitHub', error)
+      setGithubPublishStatus('error')
+      setGithubPublishMessage(
+        error instanceof Error && error.message ? error.message : 'Falha ao excluir no GitHub',
+      )
+      throw error
+    } finally {
+      setGithubPublishPending(false)
+    }
+  }
+
+  async function handleReviewDeleteByDestination(id, destination) {
+    if (destination === 'github') {
+      setReviewMutationPending(true)
+
+      try {
+        await deleteGithubPublishedItems({ reviewIds: [id] })
+        showToast('Excluído do GitHub.')
+      } catch (error) {
+        showToast(getReviewErrorMessage(error, 'Não foi possível excluir a avaliação do GitHub.'))
+      } finally {
+        setReviewMutationPending(false)
+      }
+
+      return
+    }
+
+    setReviewMutationPending(true)
+
+    try {
+      await deleteSupabaseReview(id, SITE_PASSWORD)
+      await Promise.all([refreshAdminReviews({ silent: true }), refreshPublicReviews({ silent: true })])
+      showToast('Excluído do Supabase.')
+    } catch (error) {
+      console.error('Erro ao excluir avaliação', error)
+      showToast(getReviewErrorMessage(error, 'Não foi possível excluir a avaliação.'))
+    } finally {
+      setReviewMutationPending(false)
     }
   }
 
@@ -895,12 +1030,10 @@ function App() {
     }
   }
 
-  async function handleDeleteExtraPhoto(_category, id) {
-    if (!isSupabaseConfigured) {
-      return
-    }
-
-    const entry = galleryEntries.find((item) => item.id === id)
+  async function handleDeleteExtraPhoto(_category, id, destination) {
+    const entry = adminExtraPhotos.carpintaria
+      .concat(adminExtraPhotos.alvenaria)
+      .find((item) => item.id === id)
     if (!entry) {
       return
     }
@@ -908,13 +1041,23 @@ function App() {
     setGalleryMutationPending(true)
 
     try {
+      if (destination === 'github') {
+        await deleteGithubPublishedItems({ galleryIds: [id] })
+        showToast('Excluído do GitHub.')
+        return
+      }
+
+      if (!isSupabaseConfigured || !entry.hasSupabaseRecord) {
+        throw new Error('Esta foto não existe mais no Supabase. Exclua-a pelo GitHub.')
+      }
+
       await deleteSupabaseGalleryEntry(entry, SITE_PASSWORD)
       await deleteGalleryDraftFile(id).catch(() => {})
-      setOptimisticGithubGalleryIds((current) => current.filter((entryId) => entryId !== id))
       await Promise.all([
         refreshAdminGalleryEntries({ silent: true }),
         refreshPublicGalleryEntries({ silent: true }),
       ])
+      showToast('Excluído do Supabase.')
     } catch (error) {
       console.error('Erro ao excluir foto', error)
       showToast(getReviewErrorMessage(error, 'Não foi possível excluir a foto.'))
@@ -926,39 +1069,15 @@ function App() {
   const content = siteState.publishedContent
   const mergedPublicReviews = mergePublicReviewLists(githubPublicReviews, publicReviews)
   const mergedPublicGalleryEntries = mergePublicGalleryEntries(githubGalleryEntries, publicGalleryEntries)
-  const publicGalleryIds = new Set([
-    ...mergedPublicGalleryEntries.map((entry) => entry.id),
-    ...optimisticGithubGalleryIds,
-  ])
-  const publicReviewIds = new Set([
-    ...mergedPublicReviews.map((review) => review.id),
-    ...optimisticGithubReviewIds,
-  ])
   const publicExtraPhotos = isSupabaseConfigured
     ? groupGalleryEntries(mergedPublicGalleryEntries)
     : githubGalleryEntries.length
       ? groupGalleryEntries(githubGalleryEntries)
       : content.extraPhotos
   const adminExtraPhotos = isSupabaseConfigured
-    ? groupGalleryEntries(
-        galleryEntries.map((entry) =>
-          publicGalleryIds.has(entry.id)
-            ? {
-                ...entry,
-                status: 'published',
-              }
-            : entry,
-        ),
-      )
+    ? groupGalleryEntries(mergeAdminGallerySources(galleryEntries, githubGalleryEntries, optimisticGithubGalleryIds))
     : siteState.draftContent.extraPhotos
-  const adminReviews = reviews.map((review) =>
-    publicReviewIds.has(review.id)
-      ? {
-          ...review,
-          status: 'approved',
-        }
-      : review,
-  )
+  const adminReviews = mergeAdminReviewSources(reviews, githubPublicReviews, optimisticGithubReviewIds)
   const navItems = [
     ['Início', '#inicio'],
     ['Serviços', '#servicos'],
@@ -1253,7 +1372,7 @@ function App() {
           }}
           onTextChange={handleTextChange}
           onMediaReplace={handleMediaReplace}
-          onReviewDelete={handleReviewDelete}
+          onReviewDelete={handleReviewDeleteByDestination}
           onAddExtraPhotos={handleAddExtraPhotos}
           onUpdateExtraPhoto={handleUpdateExtraPhoto}
           onDeleteExtraPhoto={handleDeleteExtraPhoto}
