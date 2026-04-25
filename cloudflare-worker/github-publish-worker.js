@@ -1,6 +1,7 @@
 const RATE_LIMIT_WINDOW_MS = 15_000
 const requestBuckets = new Map()
 const GALLERY_JSON_PATH = 'public/published/gallery.json'
+const REVIEWS_JSON_PATH = 'public/published/reviews.json'
 const GALLERY_CATEGORIES = ['carpintaria', 'alvenaria']
 const MIME_EXTENSION_MAP = {
   'image/jpeg': 'jpg',
@@ -139,6 +140,10 @@ function getDefaultGalleryManifest() {
   }
 }
 
+function getDefaultReviewsManifest() {
+  return []
+}
+
 function assertValidGalleryItem(item) {
   if (!item?.id) {
     throw new Error('Item da galeria sem ID.')
@@ -150,6 +155,20 @@ function assertValidGalleryItem(item) {
 
   if (!item.base64) {
     throw new Error('Imagem ausente para publicação no GitHub.')
+  }
+}
+
+function assertValidReviewItem(item) {
+  if (!item?.id) {
+    throw new Error('Avaliação sem ID para publicação no GitHub.')
+  }
+
+  if (!item?.comment) {
+    throw new Error('Avaliação sem comentário para publicação no GitHub.')
+  }
+
+  if (!Number.isInteger(item?.stars) || item.stars < 1 || item.stars > 5) {
+    throw new Error('Avaliação com nota inválida para publicação no GitHub.')
   }
 }
 
@@ -283,6 +302,20 @@ async function loadGalleryManifest(env) {
   }
 }
 
+async function loadReviewsManifest(env) {
+  const contents = await getRepositoryContents(env, REVIEWS_JSON_PATH)
+  if (!contents?.content) {
+    return getDefaultReviewsManifest()
+  }
+
+  try {
+    const parsed = JSON.parse(atob(contents.content.replace(/\n/g, '')))
+    return Array.isArray(parsed) ? parsed : getDefaultReviewsManifest()
+  } catch {
+    return getDefaultReviewsManifest()
+  }
+}
+
 function upsertGalleryManifestEntry(manifest, entry) {
   const nextManifest = {
     carpintaria: [...(manifest.carpintaria || [])],
@@ -297,15 +330,21 @@ function upsertGalleryManifestEntry(manifest, entry) {
   return nextManifest
 }
 
-async function commitGalleryPublication(env, galleryItems) {
+function upsertReviewManifestEntry(manifest, entry) {
+  return [entry, ...manifest.filter((item) => item.id !== entry.id)]
+}
+
+async function commitPublishedContent(env, { galleryItems = [], reviewItems = [] }) {
   const now = new Date().toISOString()
   const head = await getCurrentBranchHead(env)
   const currentCommitSha = head.object.sha
   const currentCommit = await getCommit(env, currentCommitSha)
   const currentTreeSha = currentCommit.tree.sha
   let galleryManifest = await loadGalleryManifest(env)
+  let reviewsManifest = await loadReviewsManifest(env)
   const treeEntries = []
-  const publishedItems = []
+  const publishedGalleryItems = []
+  const publishedReviewItems = []
 
   for (const rawItem of galleryItems) {
     assertValidGalleryItem(rawItem)
@@ -330,29 +369,64 @@ async function commitGalleryPublication(env, galleryItems) {
     }
 
     galleryManifest = upsertGalleryManifestEntry(galleryManifest, manifestEntry)
-    publishedItems.push(manifestEntry)
+    publishedGalleryItems.push(manifestEntry)
   }
 
-  const galleryJsonSha = await createBlob(env, `${JSON.stringify(galleryManifest, null, 2)}\n`, 'utf-8')
-  treeEntries.push({
-    path: GALLERY_JSON_PATH,
-    mode: '100644',
-    type: 'blob',
-    sha: galleryJsonSha,
-  })
+  for (const rawItem of reviewItems) {
+    assertValidReviewItem(rawItem)
+
+    const manifestEntry = {
+      id: rawItem.id,
+      stars: rawItem.stars,
+      comment: rawItem.comment,
+      createdAt: rawItem.createdAt || now,
+      publishedAt: now,
+      country: rawItem.country ?? null,
+      countryCode: rawItem.countryCode ?? null,
+      region: rawItem.region ?? null,
+      regionCode: rawItem.regionCode ?? null,
+      city: rawItem.city ?? null,
+      neighborhood: rawItem.neighborhood ?? null,
+      precision: rawItem.precision ?? 'unknown',
+    }
+
+    reviewsManifest = upsertReviewManifestEntry(reviewsManifest, manifestEntry)
+    publishedReviewItems.push(manifestEntry)
+  }
+
+  if (galleryItems.length) {
+    const galleryJsonSha = await createBlob(env, `${JSON.stringify(galleryManifest, null, 2)}\n`, 'utf-8')
+    treeEntries.push({
+      path: GALLERY_JSON_PATH,
+      mode: '100644',
+      type: 'blob',
+      sha: galleryJsonSha,
+    })
+  }
+
+  if (reviewItems.length) {
+    const reviewsJsonSha = await createBlob(env, `${JSON.stringify(reviewsManifest, null, 2)}\n`, 'utf-8')
+    treeEntries.push({
+      path: REVIEWS_JSON_PATH,
+      mode: '100644',
+      type: 'blob',
+      sha: reviewsJsonSha,
+    })
+  }
 
   const nextTreeSha = await createTree(env, currentTreeSha, treeEntries)
   const nextCommitSha = await createCommit(
     env,
     nextTreeSha,
     currentCommitSha,
-    `chore: publish ${publishedItems.length} gallery item(s) from admin`,
+    `chore: publish ${publishedGalleryItems.length} gallery item(s) and ${publishedReviewItems.length} review(s) from admin`,
   )
   await updateRef(env, nextCommitSha)
 
   return {
     commitSha: nextCommitSha,
-    publishedItems,
+    publishedGalleryItems,
+    publishedReviewItems,
   }
 }
 
@@ -421,18 +495,26 @@ export default {
         )
       }
 
-      if (Array.isArray(payload.galleryItems) && payload.galleryItems.length) {
-        const result = await commitGalleryPublication(env, payload.galleryItems)
+      if (
+        (Array.isArray(payload.galleryItems) && payload.galleryItems.length) ||
+        (Array.isArray(payload.reviewItems) && payload.reviewItems.length)
+      ) {
+        const result = await commitPublishedContent(env, {
+          galleryItems: Array.isArray(payload.galleryItems) ? payload.galleryItems : [],
+          reviewItems: Array.isArray(payload.reviewItems) ? payload.reviewItems : [],
+        })
 
         return json(
           {
             ok: true,
-            message: 'Fotos da galeria publicadas no GitHub com sucesso.',
+            message: 'Conteúdo marcado foi publicado no GitHub com sucesso.',
             timestamp: new Date().toISOString(),
             runStatus: 'committed',
             commitSha: result.commitSha,
-            publishedCount: result.publishedItems.length,
-            publishedIds: result.publishedItems.map((item) => item.id),
+            publishedGalleryCount: result.publishedGalleryItems.length,
+            publishedGalleryIds: result.publishedGalleryItems.map((item) => item.id),
+            publishedReviewCount: result.publishedReviewItems.length,
+            publishedReviewIds: result.publishedReviewItems.map((item) => item.id),
           },
           200,
           corsHeaders,

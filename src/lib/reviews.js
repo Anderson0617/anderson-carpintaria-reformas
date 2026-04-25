@@ -1,6 +1,7 @@
 import { getSupabaseClient } from './supabase'
 
 const REVIEWS_TABLE = 'reviews'
+const GITHUB_REVIEWS_URL = `${import.meta.env.BASE_URL}published/reviews.json`
 
 function normalizeReview(row) {
   return {
@@ -23,6 +24,10 @@ function normalizeReviewList(rows) {
   return (rows ?? []).map(normalizeReview)
 }
 
+function sortReviews(reviews) {
+  return [...reviews].sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
+}
+
 export async function listPublicReviews() {
   const supabase = getSupabaseClient()
   const { data, error } = await supabase
@@ -35,7 +40,51 @@ export async function listPublicReviews() {
     throw error
   }
 
-  return normalizeReviewList(data)
+  return sortReviews(normalizeReviewList(data))
+}
+
+export async function listGithubPublicReviews() {
+  const response = await fetch(GITHUB_REVIEWS_URL, {
+    cache: 'no-store',
+  })
+
+  if (response.status === 404) {
+    return []
+  }
+
+  if (!response.ok) {
+    throw new Error('Não foi possível carregar as avaliações publicadas no GitHub.')
+  }
+
+  const payload = await response.json().catch(() => [])
+  return sortReviews(
+    (payload ?? []).map((row) => ({
+      id: row.id,
+      stars: row.stars,
+      comment: row.comment,
+      status: 'approved',
+      createdAt: row.createdAt ?? row.publishedAt ?? new Date().toISOString(),
+      country: row.country ?? null,
+      countryCode: row.countryCode ?? null,
+      region: row.region ?? null,
+      regionCode: row.regionCode ?? null,
+      city: row.city ?? null,
+      neighborhood: row.neighborhood ?? null,
+      precision: row.precision ?? 'unknown',
+    })),
+  )
+}
+
+export function mergePublicReviewLists(githubReviews, supabaseReviews) {
+  const merged = new Map()
+
+  ;[...githubReviews, ...supabaseReviews].forEach((review) => {
+    if (review?.id && !merged.has(review.id)) {
+      merged.set(review.id, review)
+    }
+  })
+
+  return sortReviews([...merged.values()])
 }
 
 export async function listAdminReviews(adminPassword) {

@@ -13,7 +13,9 @@ import {
 import {
   createReview as createSupabaseReview,
   deleteReview as deleteSupabaseReview,
+  listGithubPublicReviews,
   listAdminReviews,
+  mergePublicReviewLists,
   listPublicReviews,
   updateReviewStatus as updateSupabaseReviewStatus,
 } from './lib/reviews'
@@ -153,6 +155,7 @@ function App() {
       ? []
       : defaultReviews.filter((review) => review.status === 'approved'),
   )
+  const [githubPublicReviews, setGithubPublicReviews] = useState(() => [])
   const [adminOpen, setAdminOpen] = useState(false)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const [passwordValue, setPasswordValue] = useState('')
@@ -176,6 +179,7 @@ function App() {
   const [githubPublishStatus, setGithubPublishStatus] = useState('idle')
   const [githubPublishMessage, setGithubPublishMessage] = useState('Aguardando')
   const [optimisticGithubGalleryIds, setOptimisticGithubGalleryIds] = useState([])
+  const [optimisticGithubReviewIds, setOptimisticGithubReviewIds] = useState([])
   const [supabaseMediaPending, setSupabaseMediaPending] = useState(false)
   const [supabaseMediaStatus, setSupabaseMediaStatus] = useState('idle')
   const [supabaseMediaMessage, setSupabaseMediaMessage] = useState('')
@@ -262,6 +266,10 @@ function App() {
     }
 
     refreshPublicReviews({ silent: true })
+  }, [])
+
+  useEffect(() => {
+    refreshGithubPublicReviews({ silent: true })
   }, [])
 
   useEffect(() => {
@@ -397,6 +405,23 @@ function App() {
       return null
     } finally {
       setAdminReviewsLoading(false)
+    }
+  }
+
+  async function refreshGithubPublicReviews({ silent = false } = {}) {
+    try {
+      const nextReviews = await listGithubPublicReviews()
+      setGithubPublicReviews(nextReviews)
+      setOptimisticGithubReviewIds((current) =>
+        current.filter((id) => !nextReviews.some((review) => review.id === id)),
+      )
+      return nextReviews
+    } catch (error) {
+      console.error('Erro ao carregar avaliações publicadas no GitHub', error)
+      if (!silent) {
+        showToast(getReviewErrorMessage(error, 'Não foi possível carregar as avaliações publicadas no GitHub.'))
+      }
+      return null
     }
   }
 
@@ -579,6 +604,7 @@ function App() {
 
     try {
       await deleteSupabaseReview(id, SITE_PASSWORD)
+      setOptimisticGithubReviewIds((current) => current.filter((reviewId) => reviewId !== id))
       await Promise.all([refreshAdminReviews({ silent: true }), refreshPublicReviews({ silent: true })])
     } catch (error) {
       console.error('Erro ao excluir avaliação', error)
@@ -588,7 +614,7 @@ function App() {
     }
   }
 
-  async function handleGithubPublish(selectedGalleryEntryIds) {
+  async function handleGithubPublish(selectedGalleryEntryIds, selectedReviewIds) {
     if (githubPublishPending) {
       return
     }
@@ -612,10 +638,17 @@ function App() {
     const selectedGalleryEntries = galleryEntries.filter(
       (entry) => selectedGalleryEntryIds.includes(entry.id) && !githubPublishedIds.has(entry.id),
     )
+    const githubPublishedReviewIds = new Set([
+      ...githubPublicReviews.map((review) => review.id),
+      ...optimisticGithubReviewIds,
+    ])
+    const selectedReviewEntries = reviews.filter(
+      (review) => selectedReviewIds.includes(review.id) && !githubPublishedReviewIds.has(review.id),
+    )
 
-    if (!selectedGalleryEntries.length) {
+    if (!selectedGalleryEntries.length && !selectedReviewEntries.length) {
       setGithubPublishStatus('error')
-      setGithubPublishMessage('Nenhuma foto marcada como "Subir" para publicar no GitHub.')
+      setGithubPublishMessage('Nenhum item marcado como "Subir" para publicar no GitHub.')
       return
     }
 
@@ -625,6 +658,19 @@ function App() {
 
     try {
       const galleryItems = []
+      const reviewItems = selectedReviewEntries.map((review) => ({
+        id: review.id,
+        stars: review.stars,
+        comment: review.comment,
+        createdAt: review.createdAt,
+        country: review.country ?? null,
+        countryCode: review.countryCode ?? null,
+        region: review.region ?? null,
+        regionCode: review.regionCode ?? null,
+        city: review.city ?? null,
+        neighborhood: review.neighborhood ?? null,
+        precision: review.precision ?? 'unknown',
+      }))
 
       for (const entry of selectedGalleryEntries) {
         const payload = await getGalleryDraftPublishPayload(entry.id)
@@ -643,12 +689,22 @@ function App() {
         })
       }
 
-      const result = await publishGithubWorkflow(adminCredential, galleryItems)
+      const result = await publishGithubWorkflow(adminCredential, {
+        galleryItems,
+        reviewItems,
+      })
       setOptimisticGithubGalleryIds((current) => [...new Set([...current, ...galleryItems.map((item) => item.id)])])
+      setOptimisticGithubReviewIds((current) => [...new Set([...current, ...reviewItems.map((item) => item.id)])])
       setGithubPublishStatus('success')
       setGithubPublishMessage('Publicado no GitHub')
-      if (Array.isArray(result?.publishedIds) && result.publishedIds.length) {
-        await refreshGithubGalleryEntries({ silent: true })
+      if (
+        (Array.isArray(result?.publishedGalleryIds) && result.publishedGalleryIds.length) ||
+        (Array.isArray(result?.publishedReviewIds) && result.publishedReviewIds.length)
+      ) {
+        await Promise.all([
+          refreshGithubGalleryEntries({ silent: true }),
+          refreshGithubPublicReviews({ silent: true }),
+        ])
       }
     } catch (error) {
       console.error('Erro ao publicar no GitHub', error)
@@ -868,10 +924,15 @@ function App() {
   }
 
   const content = siteState.publishedContent
+  const mergedPublicReviews = mergePublicReviewLists(githubPublicReviews, publicReviews)
   const mergedPublicGalleryEntries = mergePublicGalleryEntries(githubGalleryEntries, publicGalleryEntries)
   const publicGalleryIds = new Set([
     ...mergedPublicGalleryEntries.map((entry) => entry.id),
     ...optimisticGithubGalleryIds,
+  ])
+  const publicReviewIds = new Set([
+    ...mergedPublicReviews.map((review) => review.id),
+    ...optimisticGithubReviewIds,
   ])
   const publicExtraPhotos = isSupabaseConfigured
     ? groupGalleryEntries(mergedPublicGalleryEntries)
@@ -890,6 +951,14 @@ function App() {
         ),
       )
     : siteState.draftContent.extraPhotos
+  const adminReviews = reviews.map((review) =>
+    publicReviewIds.has(review.id)
+      ? {
+          ...review,
+          status: 'approved',
+        }
+      : review,
+  )
   const navItems = [
     ['Início', '#inicio'],
     ['Serviços', '#servicos'],
@@ -1098,7 +1167,7 @@ function App() {
 
           <ReviewSection
             intro={content.reviewsIntro}
-            publicReviews={publicReviews}
+            publicReviews={mergedPublicReviews}
             onCreateReview={handleCreateReview}
           />
         </main>
@@ -1172,7 +1241,7 @@ function App() {
           visitCount={visitCount}
           recentVisits={recentVisits}
           recentVisitsLoading={recentVisitsLoading}
-          reviews={reviews}
+          reviews={adminReviews}
           reviewsLoading={adminReviewsLoading}
           reviewActionPending={reviewMutationPending}
           extraPhotos={adminExtraPhotos}

@@ -65,7 +65,7 @@ function ReviewActions({ review, selection, onSelectionChange, onDelete, disable
           </div>
           <p className="admin-photo-card__hint">
             {selection === 'publish'
-              ? 'Marcada para ir ao público em "Publicar no Supabase".'
+              ? 'Marcada para publicação em um dos botões de destino.'
               : 'Esta avaliação continua fora do público até você marcar "Subir".'}
           </p>
         </>
@@ -309,8 +309,11 @@ function AdminPanel({
     const selectedGalleryEntryIds = [...extraPhotos.carpintaria, ...extraPhotos.alvenaria]
       .filter((item) => item.status !== 'published' && gallerySelections[item.id] === 'publish')
       .map((item) => item.id)
+    const selectedReviewIds = reviews
+      .filter((review) => review.status !== 'approved' && reviewSelections[review.id] === 'publish')
+      .map((review) => review.id)
 
-    await onGithubPublish(selectedGalleryEntryIds)
+    await onGithubPublish(selectedGalleryEntryIds, selectedReviewIds)
   }
 
   async function handleSupabaseMediaUploadClick() {
