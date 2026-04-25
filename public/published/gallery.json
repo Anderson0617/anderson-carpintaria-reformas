@@ -1,13 +1,4 @@
 {
   "carpintaria": [],
-  "alvenaria": [
-    {
-      "id": "33440a22-1789-4249-9680-eacdfe86c71b",
-      "category": "alvenaria",
-      "name": "1.webp",
-      "description": "UYF76YF76YFT76T0RT0876T7GVHYGGIUYIUIUIP77IUHGIUIUT8UTUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU",
-      "imagePath": "published/gallery/alvenaria/33440a22-1789-4249-9680-eacdfe86c71b-1.webp",
-      "publishedAt": "2026-04-25T19:22:30.596Z"
-    }
-  ]
+  "alvenaria": []
 }
