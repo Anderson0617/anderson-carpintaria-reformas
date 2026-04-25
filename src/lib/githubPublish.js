@@ -2,7 +2,7 @@ const workerUrl = import.meta.env.VITE_PUBLISH_WORKER_URL?.trim()
 
 export const isGithubPublishConfigured = Boolean(workerUrl)
 
-export async function publishGithubWorkflow(adminCredential) {
+export async function publishGithubWorkflow(adminCredential, galleryItems = []) {
   if (!workerUrl) {
     throw new Error('Endpoint do Worker não configurado. Preencha VITE_PUBLISH_WORKER_URL.')
   }
@@ -14,6 +14,7 @@ export async function publishGithubWorkflow(adminCredential) {
     },
     body: JSON.stringify({
       adminCredential,
+      galleryItems,
     }),
   })
 

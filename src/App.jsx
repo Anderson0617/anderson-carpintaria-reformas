@@ -20,8 +20,10 @@ import {
 import {
   deleteGalleryEntry as deleteSupabaseGalleryEntry,
   groupGalleryEntries,
+  listGithubGalleryEntries,
   listAdminGalleryEntries,
   listPublicGalleryEntries,
+  mergePublicGalleryEntries,
   publishGalleryEntriesByIds as publishSupabaseGalleryEntriesByIds,
   updateGalleryEntryDescription,
   uploadGalleryEntry,
@@ -32,6 +34,11 @@ import { listRecentVisits, getSiteVisits, incrementSiteVisits } from './lib/visi
 import { getApproxLocation, getOrCreateVisitorSessionId } from './lib/location'
 import { isGithubPublishConfigured, publishGithubWorkflow } from './lib/githubPublish'
 import { EDITABLE_MEDIA_PATHS, isDataUrl, listPublicEditableMedia, uploadEditableMediaAssets } from './lib/mediaAssets'
+import {
+  deleteGalleryDraftFile,
+  getGalleryDraftPublishPayload,
+  saveGalleryDraftFile,
+} from './lib/galleryDraftStore'
 
 const initialState = {
   draftContent: defaultDraftContent,
@@ -157,6 +164,7 @@ function App() {
   const [reviewMutationPending, setReviewMutationPending] = useState(false)
   const [galleryEntries, setGalleryEntries] = useState(() => [])
   const [publicGalleryEntries, setPublicGalleryEntries] = useState(() => [])
+  const [githubGalleryEntries, setGithubGalleryEntries] = useState(() => [])
   const [galleryLoading, setGalleryLoading] = useState(false)
   const [galleryMutationPending, setGalleryMutationPending] = useState(false)
   const [visitCount, setVisitCount] = useState(0)
@@ -167,6 +175,7 @@ function App() {
   const [githubPublishPending, setGithubPublishPending] = useState(false)
   const [githubPublishStatus, setGithubPublishStatus] = useState('idle')
   const [githubPublishMessage, setGithubPublishMessage] = useState('Aguardando')
+  const [optimisticGithubGalleryIds, setOptimisticGithubGalleryIds] = useState([])
   const [supabaseMediaPending, setSupabaseMediaPending] = useState(false)
   const [supabaseMediaStatus, setSupabaseMediaStatus] = useState('idle')
   const [supabaseMediaMessage, setSupabaseMediaMessage] = useState('')
@@ -261,6 +270,10 @@ function App() {
     }
 
     refreshPublicGalleryEntries({ silent: true })
+  }, [])
+
+  useEffect(() => {
+    refreshGithubGalleryEntries({ silent: true })
   }, [])
 
   useEffect(() => {
@@ -451,6 +464,23 @@ function App() {
     }
   }
 
+  async function refreshGithubGalleryEntries({ silent = false } = {}) {
+    try {
+      const nextEntries = await listGithubGalleryEntries()
+      setGithubGalleryEntries(nextEntries)
+      setOptimisticGithubGalleryIds((current) =>
+        current.filter((id) => !nextEntries.some((entry) => entry.id === id)),
+      )
+      return nextEntries
+    } catch (error) {
+      console.error('Erro ao carregar fotos publicadas no GitHub', error)
+      if (!silent) {
+        showToast(getReviewErrorMessage(error, 'Não foi possível carregar as fotos publicadas no GitHub.'))
+      }
+      return null
+    }
+  }
+
   async function handleCreateReview(review) {
     try {
       const location = visitorLocation ?? (isSupabaseConfigured ? await getApproxLocation() : null)
@@ -558,7 +588,7 @@ function App() {
     }
   }
 
-  async function handleGithubPublish() {
+  async function handleGithubPublish(selectedGalleryEntryIds) {
     if (githubPublishPending) {
       return
     }
@@ -575,14 +605,51 @@ function App() {
       return
     }
 
+    const githubPublishedIds = new Set([
+      ...githubGalleryEntries.map((entry) => entry.id),
+      ...optimisticGithubGalleryIds,
+    ])
+    const selectedGalleryEntries = galleryEntries.filter(
+      (entry) => selectedGalleryEntryIds.includes(entry.id) && !githubPublishedIds.has(entry.id),
+    )
+
+    if (!selectedGalleryEntries.length) {
+      setGithubPublishStatus('error')
+      setGithubPublishMessage('Nenhuma foto marcada como "Subir" para publicar no GitHub.')
+      return
+    }
+
     setGithubPublishPending(true)
     setGithubPublishStatus('pending')
     setGithubPublishMessage('Publicando...')
 
     try {
-      await publishGithubWorkflow(adminCredential)
+      const galleryItems = []
+
+      for (const entry of selectedGalleryEntries) {
+        const payload = await getGalleryDraftPublishPayload(entry.id)
+        if (!payload?.base64) {
+          throw new Error('Esta foto precisa ser reenviada neste navegador para publicar pelo GitHub.')
+        }
+
+        galleryItems.push({
+          id: entry.id,
+          category: entry.category,
+          name: entry.name,
+          description: entry.description,
+          fileName: payload.fileName,
+          mimeType: payload.mimeType,
+          base64: payload.base64,
+        })
+      }
+
+      const result = await publishGithubWorkflow(adminCredential, galleryItems)
+      setOptimisticGithubGalleryIds((current) => [...new Set([...current, ...galleryItems.map((item) => item.id)])])
       setGithubPublishStatus('success')
       setGithubPublishMessage('Publicado no GitHub')
+      if (Array.isArray(result?.publishedIds) && result.publishedIds.length) {
+        await refreshGithubGalleryEntries({ silent: true })
+      }
     } catch (error) {
       console.error('Erro ao publicar no GitHub', error)
       setGithubPublishStatus('error')
@@ -723,7 +790,7 @@ function App() {
     setGalleryMutationPending(true)
 
     try {
-      await Promise.all(
+      const uploadedEntries = await Promise.all(
         files.map((file) =>
           uploadGalleryEntry({
             file,
@@ -732,6 +799,18 @@ function App() {
           }),
         ),
       )
+
+      await Promise.all(
+        uploadedEntries.map(async (entry, index) => {
+          try {
+            await saveGalleryDraftFile(entry.id, files[index])
+          } catch (error) {
+            console.error('Erro ao salvar rascunho local da foto', error)
+            showToast('Foto enviada ao Supabase, mas não foi guardada neste navegador para publicar pelo GitHub.')
+          }
+        }),
+      )
+
       await refreshAdminGalleryEntries({ silent: true })
     } catch (error) {
       console.error('Erro ao subir novas fotos', error)
@@ -774,6 +853,8 @@ function App() {
 
     try {
       await deleteSupabaseGalleryEntry(entry, SITE_PASSWORD)
+      await deleteGalleryDraftFile(id).catch(() => {})
+      setOptimisticGithubGalleryIds((current) => current.filter((entryId) => entryId !== id))
       await Promise.all([
         refreshAdminGalleryEntries({ silent: true }),
         refreshPublicGalleryEntries({ silent: true }),
@@ -787,11 +868,27 @@ function App() {
   }
 
   const content = siteState.publishedContent
+  const mergedPublicGalleryEntries = mergePublicGalleryEntries(githubGalleryEntries, publicGalleryEntries)
+  const publicGalleryIds = new Set([
+    ...mergedPublicGalleryEntries.map((entry) => entry.id),
+    ...optimisticGithubGalleryIds,
+  ])
   const publicExtraPhotos = isSupabaseConfigured
-    ? groupGalleryEntries(publicGalleryEntries)
-    : content.extraPhotos
+    ? groupGalleryEntries(mergedPublicGalleryEntries)
+    : githubGalleryEntries.length
+      ? groupGalleryEntries(githubGalleryEntries)
+      : content.extraPhotos
   const adminExtraPhotos = isSupabaseConfigured
-    ? groupGalleryEntries(galleryEntries)
+    ? groupGalleryEntries(
+        galleryEntries.map((entry) =>
+          publicGalleryIds.has(entry.id)
+            ? {
+                ...entry,
+                status: 'published',
+              }
+            : entry,
+        ),
+      )
     : siteState.draftContent.extraPhotos
   const navItems = [
     ['Início', '#inicio'],

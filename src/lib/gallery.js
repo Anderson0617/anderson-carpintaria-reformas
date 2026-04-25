@@ -3,6 +3,7 @@ import { getSupabaseClient } from './supabase'
 const GALLERY_TABLE = 'gallery_entries'
 export const GALLERY_BUCKET = 'site-gallery'
 const GALLERY_CATEGORIES = ['carpintaria', 'alvenaria']
+const GITHUB_GALLERY_URL = `${import.meta.env.BASE_URL}published/gallery.json`
 
 function getPublicImageUrl(imagePath) {
   const supabase = getSupabaseClient()
@@ -27,6 +28,34 @@ function normalizeGalleryEntry(row) {
 
 function normalizeGalleryEntries(rows) {
   return (rows ?? []).map(normalizeGalleryEntry)
+}
+
+function getGithubImageUrl(imagePath) {
+  const normalizedPath = String(imagePath || '').replace(/^\/+/, '')
+  if (!normalizedPath) {
+    return ''
+  }
+
+  if (typeof window === 'undefined') {
+    return `${import.meta.env.BASE_URL}${normalizedPath}`.replace(/([^:]\/)\/+/g, '$1')
+  }
+
+  return new URL(normalizedPath, window.location.origin + import.meta.env.BASE_URL).toString()
+}
+
+function normalizeGithubEntry(entry, category) {
+  return {
+    id: entry.id,
+    category,
+    name: entry.name,
+    description: entry.description ?? '',
+    status: 'published',
+    imagePath: entry.imagePath,
+    src: getGithubImageUrl(entry.imagePath),
+    createdAt: entry.createdAt ?? entry.publishedAt ?? new Date().toISOString(),
+    publishedAt: entry.publishedAt ?? entry.createdAt ?? new Date().toISOString(),
+    sortOrder: null,
+  }
 }
 
 function sanitizeFileName(name) {
@@ -58,6 +87,18 @@ export function groupGalleryEntries(entries) {
   }
 }
 
+export function mergePublicGalleryEntries(githubEntries, supabaseEntries) {
+  const merged = new Map()
+
+  ;[...githubEntries, ...supabaseEntries].forEach((entry) => {
+    if (entry?.id && !merged.has(entry.id)) {
+      merged.set(entry.id, entry)
+    }
+  })
+
+  return sortGalleryEntries([...merged.values()])
+}
+
 export async function listPublicGalleryEntries() {
   const supabase = getSupabaseClient()
   const { data, error } = await supabase
@@ -72,6 +113,30 @@ export async function listPublicGalleryEntries() {
   }
 
   return normalizeGalleryEntries(data)
+}
+
+export async function listGithubGalleryEntries() {
+  const response = await fetch(GITHUB_GALLERY_URL, {
+    cache: 'no-store',
+  })
+
+  if (response.status === 404) {
+    return []
+  }
+
+  if (!response.ok) {
+    throw new Error('Não foi possível carregar a galeria publicada no GitHub.')
+  }
+
+  const payload = await response.json().catch(() => ({
+    carpintaria: [],
+    alvenaria: [],
+  }))
+
+  return [
+    ...(payload.carpintaria ?? []).map((entry) => normalizeGithubEntry(entry, 'carpintaria')),
+    ...(payload.alvenaria ?? []).map((entry) => normalizeGithubEntry(entry, 'alvenaria')),
+  ]
 }
 
 export async function listAdminGalleryEntries(adminPassword) {

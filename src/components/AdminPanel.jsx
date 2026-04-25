@@ -186,7 +186,7 @@ function ExtraPhotoManager({
                   </div>
                   <p className="admin-photo-card__hint">
                     {selections[item.id] === 'publish'
-                      ? 'Marcada para ir ao público em "Publicar no Supabase".'
+                      ? 'Marcada para publicação em um dos botões de destino.'
                       : 'Esta foto continua só no ADM até você marcar "Subir".'}
                   </p>
                 </>
@@ -306,7 +306,11 @@ function AdminPanel({
   }
 
   async function handleGithubPublishClick() {
-    await onGithubPublish()
+    const selectedGalleryEntryIds = [...extraPhotos.carpintaria, ...extraPhotos.alvenaria]
+      .filter((item) => item.status !== 'published' && gallerySelections[item.id] === 'publish')
+      .map((item) => item.id)
+
+    await onGithubPublish(selectedGalleryEntryIds)
   }
 
   async function handleSupabaseMediaUploadClick() {
