@@ -34,93 +34,153 @@ function getByPath(source, path) {
   return path.split('.').reduce((accumulator, key) => accumulator[key], source)
 }
 
-function ReviewActions({ review, selection, onSelectionChange, onDelete, disabled }) {
-  const isPublic = review.isPublic
-  const hasGithubRecord = Boolean(review.hasGithubRecord)
-  const hasSupabaseRecord = Boolean(review.hasSupabaseRecord)
-  const isGithubOnly = hasGithubRecord && !review.isPublishedInSupabase
-  const isSupabaseOnly = hasSupabaseRecord && !hasGithubRecord
-  const isPublicInBoth = hasSupabaseRecord && hasGithubRecord
+function createEmptySelection() {
+  return {
+    publishGithub: false,
+    publishSupabase: false,
+    deleteGithub: false,
+    deleteSupabase: false,
+  }
+}
+
+function createSelectionForItem(item, currentSelection) {
+  const next = createEmptySelection()
+
+  if (item.isPublic) {
+    next.deleteGithub = item.hasGithubRecord ? currentSelection?.deleteGithub === true : false
+    next.deleteSupabase = item.isPublishedInSupabase ? currentSelection?.deleteSupabase === true : false
+    return next
+  }
+
+  next.publishGithub = currentSelection?.publishGithub === true
+  next.publishSupabase = currentSelection?.publishSupabase === true
+  return next
+}
+
+function translateReviewStatus(status) {
+  if (status === 'private') {
+    return 'privado'
+  }
+
+  if (status === 'pending') {
+    return 'pendente'
+  }
+
+  if (status === 'approved') {
+    return 'público'
+  }
+
+  if (status === 'hidden') {
+    return 'oculto'
+  }
+
+  return status
+}
+
+function getDestinationStatusLabel(item, selection) {
+  if (item.isPublic) {
+    const markedToDelete = []
+
+    if (selection?.deleteGithub) {
+      markedToDelete.push('GitHub')
+    }
+
+    if (selection?.deleteSupabase) {
+      markedToDelete.push('Supabase')
+    }
+
+    if (markedToDelete.length === 2) {
+      return 'Marcado para excluir do GitHub e Supabase'
+    }
+
+    if (markedToDelete.length === 1) {
+      return `Marcado para excluir do ${markedToDelete[0]}`
+    }
+
+    if (item.hasGithubRecord && item.isPublishedInSupabase) {
+      return 'Público no GitHub e Supabase'
+    }
+
+    if (item.hasGithubRecord) {
+      return 'Público no GitHub'
+    }
+
+    if (item.isPublishedInSupabase) {
+      return 'Público no Supabase'
+    }
+  }
+
+  const markedToPublish = []
+
+  if (selection?.publishGithub) {
+    markedToPublish.push('GitHub')
+  }
+
+  if (selection?.publishSupabase) {
+    markedToPublish.push('Supabase')
+  }
+
+  if (markedToPublish.length === 2) {
+    return 'Marcado para subir no GitHub e Supabase'
+  }
+
+  if (markedToPublish.length === 1) {
+    return `Marcado para subir no ${markedToPublish[0]}`
+  }
+
+  return 'Fora do público'
+}
+
+function DestinationControls({ item, selection, disabled, onSelectionChange }) {
+  if (item.isPublic) {
+    return (
+      <div className="admin-destination-controls" role="group" aria-label={`Destinos do item ${item.id}`}>
+        {item.hasGithubRecord ? (
+          <label className={`admin-destination-option ${selection.deleteGithub ? 'is-active is-danger' : ''}`}>
+            <input
+              type="checkbox"
+              checked={selection.deleteGithub}
+              disabled={disabled}
+              onChange={(event) => onSelectionChange(item.id, 'deleteGithub', event.target.checked)}
+            />
+            <span>Excluir GitHub</span>
+          </label>
+        ) : null}
+        {item.isPublishedInSupabase ? (
+          <label className={`admin-destination-option ${selection.deleteSupabase ? 'is-active is-danger' : ''}`}>
+            <input
+              type="checkbox"
+              checked={selection.deleteSupabase}
+              disabled={disabled}
+              onChange={(event) => onSelectionChange(item.id, 'deleteSupabase', event.target.checked)}
+            />
+            <span>Excluir Supabase</span>
+          </label>
+        ) : null}
+      </div>
+    )
+  }
 
   return (
-    <div className="admin-review-actions">
-      {isPublic ? (
-        <p className="admin-photo-card__hint">
-          {isPublicInBoth
-            ? 'Esta avaliação está pública no Supabase e no GitHub. Exclua no destino desejado.'
-            : isGithubOnly
-              ? 'Esta avaliação está pública pelo GitHub.'
-              : 'Esta avaliação está pública pelo Supabase.'}
-        </p>
-      ) : (
-        <>
-          <div className="admin-photo-controls" role="group" aria-label={`Publicação da avaliação ${review.id}`}>
-            <label className={`admin-photo-control ${selection !== 'publish' ? 'is-active' : ''}`}>
-              <input
-                type="radio"
-                name={`review-${review.id}`}
-                checked={selection !== 'publish'}
-                disabled={disabled}
-                onChange={() => onSelectionChange(review.id, 'pending')}
-              />
-              <span>Deixar pendente</span>
-            </label>
-            <label className={`admin-photo-control ${selection === 'publish' ? 'is-active' : ''}`}>
-              <input
-                type="radio"
-                name={`review-${review.id}`}
-                checked={selection === 'publish'}
-                disabled={disabled}
-                onChange={() => onSelectionChange(review.id, 'publish')}
-              />
-              <span>Subir</span>
-            </label>
-          </div>
-          <p className="admin-photo-card__hint">
-            {selection === 'publish'
-              ? 'Marcada para publicação em um dos botões de destino.'
-              : 'Esta avaliação continua fora do público até você marcar "Subir".'}
-          </p>
-        </>
-      )}
-      {isPublicInBoth ? (
-        <>
-          <button
-            type="button"
-            className="is-danger"
-            disabled={disabled}
-            onClick={() => onDelete(review.id, 'supabase')}
-          >
-            Excluir do Supabase
-          </button>
-          <button
-            type="button"
-            className="is-danger"
-            disabled={disabled}
-            onClick={() => onDelete(review.id, 'github')}
-          >
-            Excluir do GitHub
-          </button>
-        </>
-      ) : hasGithubRecord ? (
-        <button
-          type="button"
-          className="is-danger"
+    <div className="admin-destination-controls" role="group" aria-label={`Destinos do item ${item.id}`}>
+      <label className={`admin-destination-option ${selection.publishGithub ? 'is-active' : ''}`}>
+        <input
+          type="checkbox"
+          checked={selection.publishGithub}
           disabled={disabled}
-          onClick={() => onDelete(review.id, 'github')}
-        >
-          Excluir do GitHub
-        </button>
-      ) : (
-        <button
-          type="button"
-          className="is-danger"
+          onChange={(event) => onSelectionChange(item.id, 'publishGithub', event.target.checked)}
+        />
+        <span>Subir GitHub</span>
+      </label>
+      <label className={`admin-destination-option ${selection.publishSupabase ? 'is-active' : ''}`}>
+        <input
+          type="checkbox"
+          checked={selection.publishSupabase}
           disabled={disabled}
-          onClick={() => onDelete(review.id, 'supabase')}
-        >
-          Excluir do Supabase
-        </button>
-      )}
+          onChange={(event) => onSelectionChange(item.id, 'publishSupabase', event.target.checked)}
+        />
+        <span>Subir Supabase</span>
+      </label>
     </div>
   )
 }
@@ -174,7 +234,6 @@ function ExtraPhotoManager({
   selections,
   onAdd,
   onUpdate,
-  onDelete,
   onSelectionChange,
 }) {
   async function handleUpload(event) {
@@ -205,46 +264,13 @@ function ExtraPhotoManager({
           items.map((item) => (
             <article className="admin-photo-card" key={item.id}>
               <img src={item.src} alt={item.name || title} />
-              <p className="panel__label">{item.isPublic ? 'ESTÁ PÚBLICO' : 'PENDENTE'}</p>
-              {item.isPublic ? (
-                <p className="admin-photo-card__hint">
-                  {item.isPublishedInSupabase && item.isPublishedInGithub
-                    ? 'Esta foto está pública no Supabase e no GitHub. Exclua no destino desejado.'
-                    : item.isPublishedInGithub
-                      ? 'Esta foto está visível no público pelo GitHub.'
-                      : 'Esta foto está visível no público pelo Supabase.'}
-                </p>
-              ) : (
-                <>
-                  <div className="admin-photo-controls" role="group" aria-label={`Publicação da foto ${item.name || title}`}>
-                    <label className={`admin-photo-control ${selections[item.id] !== 'publish' ? 'is-active' : ''}`}>
-                      <input
-                        type="radio"
-                        name={`gallery-entry-${item.id}`}
-                        checked={selections[item.id] !== 'publish'}
-                        disabled={disabled}
-                        onChange={() => onSelectionChange(item.id, 'pending')}
-                      />
-                      <span>Deixar pendente</span>
-                    </label>
-                    <label className={`admin-photo-control ${selections[item.id] === 'publish' ? 'is-active' : ''}`}>
-                      <input
-                        type="radio"
-                        name={`gallery-entry-${item.id}`}
-                        checked={selections[item.id] === 'publish'}
-                        disabled={disabled}
-                        onChange={() => onSelectionChange(item.id, 'publish')}
-                      />
-                      <span>Subir</span>
-                    </label>
-                  </div>
-                  <p className="admin-photo-card__hint">
-                    {selections[item.id] === 'publish'
-                      ? 'Marcada para publicação em um dos botões de destino.'
-                      : 'Esta foto continua só no ADM até você marcar "Subir".'}
-                  </p>
-                </>
-              )}
+              <p className="panel__label">{getDestinationStatusLabel(item, selections[item.id])}</p>
+              <DestinationControls
+                item={item}
+                selection={selections[item.id] || createEmptySelection()}
+                disabled={disabled}
+                onSelectionChange={onSelectionChange}
+              />
               <textarea
                 rows="3"
                 placeholder="Texto ou descrição desta foto"
@@ -252,44 +278,6 @@ function ExtraPhotoManager({
                 disabled={disabled || !item.hasSupabaseRecord}
                 onChange={(event) => onUpdate(category, item.id, event.target.value)}
               />
-              {item.hasSupabaseRecord && item.hasGithubRecord ? (
-                <>
-                  <button
-                    type="button"
-                    className="is-danger"
-                    disabled={disabled}
-                    onClick={() => onDelete(category, item.id, 'supabase')}
-                  >
-                    Excluir do Supabase
-                  </button>
-                  <button
-                    type="button"
-                    className="is-danger"
-                    disabled={disabled}
-                    onClick={() => onDelete(category, item.id, 'github')}
-                  >
-                    Excluir do GitHub
-                  </button>
-                </>
-              ) : item.hasGithubRecord ? (
-                <button
-                  type="button"
-                  className="is-danger"
-                  disabled={disabled}
-                  onClick={() => onDelete(category, item.id, 'github')}
-                >
-                  Excluir do GitHub
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="is-danger"
-                  disabled={disabled}
-                  onClick={() => onDelete(category, item.id, 'supabase')}
-                >
-                  Excluir do Supabase
-                </button>
-              )}
             </article>
           ))
         ) : (
@@ -314,10 +302,8 @@ function AdminPanel({
   onClose,
   onTextChange,
   onMediaReplace,
-  onReviewDelete,
   onAddExtraPhotos,
   onUpdateExtraPhoto,
-  onDeleteExtraPhoto,
   supabaseMediaPending,
   supabaseMediaStatus,
   supabaseMediaMessage,
@@ -338,9 +324,7 @@ function AdminPanel({
       const next = {}
 
       allItems.forEach((item) => {
-        if (!item.isPublic) {
-          next[item.id] = current[item.id] === 'publish' ? 'publish' : 'pending'
-        }
+        next[item.id] = createSelectionForItem(item, current[item.id])
       })
 
       return next
@@ -352,9 +336,7 @@ function AdminPanel({
       const next = {}
 
       reviews.forEach((review) => {
-        if (!review.isPublic) {
-          next[review.id] = current[review.id] === 'publish' ? 'publish' : 'pending'
-        }
+        next[review.id] = createSelectionForItem(review, current[review.id])
       })
 
       return next
@@ -395,25 +377,49 @@ function AdminPanel({
   }
 
   async function handleGithubPublishClick() {
-    const selectedGalleryEntryIds = [...extraPhotos.carpintaria, ...extraPhotos.alvenaria]
-      .filter((item) => !item.isPublic && gallerySelections[item.id] === 'publish')
+    const allPhotos = [...extraPhotos.carpintaria, ...extraPhotos.alvenaria]
+    const galleryIdsToPublish = allPhotos
+      .filter((item) => !item.isPublic && gallerySelections[item.id]?.publishGithub)
       .map((item) => item.id)
-    const selectedReviewIds = reviews
-      .filter((review) => !review.isPublic && reviewSelections[review.id] === 'publish')
+    const galleryIdsToDelete = allPhotos
+      .filter((item) => item.hasGithubRecord && gallerySelections[item.id]?.deleteGithub)
+      .map((item) => item.id)
+    const reviewIdsToPublish = reviews
+      .filter((review) => !review.isPublic && reviewSelections[review.id]?.publishGithub)
+      .map((review) => review.id)
+    const reviewIdsToDelete = reviews
+      .filter((review) => review.hasGithubRecord && reviewSelections[review.id]?.deleteGithub)
       .map((review) => review.id)
 
-    await onGithubPublish(selectedGalleryEntryIds, selectedReviewIds)
+    await onGithubPublish({
+      galleryIdsToPublish,
+      reviewIdsToPublish,
+      galleryIdsToDelete,
+      reviewIdsToDelete,
+    })
   }
 
   async function handleSupabaseMediaUploadClick() {
-    const selectedGalleryEntryIds = [...extraPhotos.carpintaria, ...extraPhotos.alvenaria]
-      .filter((item) => !item.isPublic && gallerySelections[item.id] === 'publish')
+    const allPhotos = [...extraPhotos.carpintaria, ...extraPhotos.alvenaria]
+    const galleryIdsToPublish = allPhotos
+      .filter((item) => !item.isPublic && gallerySelections[item.id]?.publishSupabase)
       .map((item) => item.id)
-    const selectedReviewIds = reviews
-      .filter((review) => !review.isPublic && reviewSelections[review.id] === 'publish')
+    const galleryIdsToDelete = allPhotos
+      .filter((item) => item.isPublishedInSupabase && gallerySelections[item.id]?.deleteSupabase)
+      .map((item) => item.id)
+    const reviewIdsToPublish = reviews
+      .filter((review) => !review.isPublic && reviewSelections[review.id]?.publishSupabase)
+      .map((review) => review.id)
+    const reviewIdsToDelete = reviews
+      .filter((review) => review.isPublishedInSupabase && reviewSelections[review.id]?.deleteSupabase)
       .map((review) => review.id)
 
-    await onSupabaseMediaUpload(selectedGalleryEntryIds, selectedReviewIds)
+    await onSupabaseMediaUpload({
+      galleryIdsToPublish,
+      reviewIdsToPublish,
+      galleryIdsToDelete,
+      reviewIdsToDelete,
+    })
   }
 
   return (
@@ -479,11 +485,14 @@ function AdminPanel({
           selections={gallerySelections}
           onAdd={onAddExtraPhotos}
           onUpdate={onUpdateExtraPhoto}
-          onDelete={onDeleteExtraPhoto}
-          onSelectionChange={(id, value) =>
+          onSelectionChange={(id, key, checked) =>
             setGallerySelections((current) => ({
               ...current,
-              [id]: value,
+              [id]: {
+                ...createEmptySelection(),
+                ...current[id],
+                [key]: checked,
+              },
             }))
           }
         />
@@ -496,11 +505,14 @@ function AdminPanel({
           selections={gallerySelections}
           onAdd={onAddExtraPhotos}
           onUpdate={onUpdateExtraPhoto}
-          onDelete={onDeleteExtraPhoto}
-          onSelectionChange={(id, value) =>
+          onSelectionChange={(id, key, checked) =>
             setGallerySelections((current) => ({
               ...current,
-              [id]: value,
+              [id]: {
+                ...createEmptySelection(),
+                ...current[id],
+                [key]: checked,
+              },
             }))
           }
         />
@@ -509,7 +521,7 @@ function AdminPanel({
           <div className="admin-block__header">
             <div>
               <span className="panel__label">Avaliações</span>
-              <h3>Controle de publicação e privado</h3>
+              <h3>Controle de publicação</h3>
             </div>
             <select
               value={filter}
@@ -536,22 +548,26 @@ function AdminPanel({
                 <article className="admin-review-card" key={review.id}>
                   <div className="admin-review-card__top">
                     <strong>{'★'.repeat(review.stars)}</strong>
-                    <span>{review.status}</span>
+                    <span>{getDestinationStatusLabel(review, reviewSelections[review.id])}</span>
+                    <span>{translateReviewStatus(review.status)}</span>
                     <span>{new Date(review.createdAt).toLocaleString('pt-BR')}</span>
                   </div>
                   <p>{review.comment}</p>
                   <p className="admin-review-card__region">Região: {formatApproxRegion(review)}</p>
-                  <ReviewActions
-                    review={review}
-                    selection={reviewSelections[review.id]}
+                  <DestinationControls
+                    item={review}
+                    selection={reviewSelections[review.id] || createEmptySelection()}
                     disabled={reviewActionPending}
-                    onSelectionChange={(id, value) =>
+                    onSelectionChange={(id, key, checked) =>
                       setReviewSelections((current) => ({
                         ...current,
-                        [id]: value,
+                        [id]: {
+                          ...createEmptySelection(),
+                          ...current[id],
+                          [key]: checked,
+                        },
                       }))
                     }
-                    onDelete={onReviewDelete}
                   />
                 </article>
               ))

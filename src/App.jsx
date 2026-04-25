@@ -674,7 +674,12 @@ function App() {
     }
   }
 
-  async function handleGithubPublish(selectedGalleryEntryIds, selectedReviewIds) {
+  async function handleGithubPublish({
+    galleryIdsToPublish = [],
+    reviewIdsToPublish = [],
+    galleryIdsToDelete = [],
+    reviewIdsToDelete = [],
+  } = {}) {
     if (githubPublishPending) {
       return
     }
@@ -691,30 +696,37 @@ function App() {
       return
     }
 
-    const githubPublishedIds = new Set([
+    const githubPublishedGalleryIds = new Set([
       ...githubGalleryEntries.map((entry) => entry.id),
       ...optimisticGithubGalleryIds,
     ])
     const selectedGalleryEntries = galleryEntries.filter(
-      (entry) => selectedGalleryEntryIds.includes(entry.id) && !githubPublishedIds.has(entry.id),
+      (entry) => galleryIdsToPublish.includes(entry.id) && !githubPublishedGalleryIds.has(entry.id),
     )
     const githubPublishedReviewIds = new Set([
       ...githubPublicReviews.map((review) => review.id),
       ...optimisticGithubReviewIds,
     ])
     const selectedReviewEntries = reviews.filter(
-      (review) => selectedReviewIds.includes(review.id) && !githubPublishedReviewIds.has(review.id),
+      (review) => reviewIdsToPublish.includes(review.id) && !githubPublishedReviewIds.has(review.id),
     )
+    const selectedGalleryIdsToDelete = galleryIdsToDelete.filter((id) => githubPublishedGalleryIds.has(id))
+    const selectedReviewIdsToDelete = reviewIdsToDelete.filter((id) => githubPublishedReviewIds.has(id))
 
-    if (!selectedGalleryEntries.length && !selectedReviewEntries.length) {
+    if (
+      !selectedGalleryEntries.length &&
+      !selectedReviewEntries.length &&
+      !selectedGalleryIdsToDelete.length &&
+      !selectedReviewIdsToDelete.length
+    ) {
       setGithubPublishStatus('error')
-      setGithubPublishMessage('Nenhum item marcado como "Subir" para publicar no GitHub.')
+      setGithubPublishMessage('Nenhum item marcado para o GitHub.')
       return
     }
 
     setGithubPublishPending(true)
     setGithubPublishStatus('pending')
-    setGithubPublishMessage('Publicando...')
+    setGithubPublishMessage('Atualizando GitHub...')
 
     try {
       const galleryItems = []
@@ -752,16 +764,34 @@ function App() {
       const result = await publishGithubWorkflow(adminCredential, {
         galleryItems,
         reviewItems,
+        galleryIdsToDelete: selectedGalleryIdsToDelete,
+        reviewIdsToDelete: selectedReviewIdsToDelete,
       })
-      setOptimisticGithubGalleryIds((current) => [...new Set([...current, ...galleryItems.map((item) => item.id)])])
-      setOptimisticGithubReviewIds((current) => [...new Set([...current, ...reviewItems.map((item) => item.id)])])
-      setGithubGalleryEntries((current) => [...current])
-      setGithubPublicReviews((current) => [...current])
+      setOptimisticGithubGalleryIds((current) =>
+        current
+          .filter((id) => !selectedGalleryIdsToDelete.includes(id))
+          .concat(galleryItems.map((item) => item.id))
+          .filter((id, index, array) => array.indexOf(id) === index),
+      )
+      setOptimisticGithubReviewIds((current) =>
+        current
+          .filter((id) => !selectedReviewIdsToDelete.includes(id))
+          .concat(reviewItems.map((item) => item.id))
+          .filter((id, index, array) => array.indexOf(id) === index),
+      )
+      setGithubGalleryEntries((current) =>
+        current.filter((entry) => !selectedGalleryIdsToDelete.includes(entry.id)),
+      )
+      setGithubPublicReviews((current) =>
+        current.filter((review) => !selectedReviewIdsToDelete.includes(review.id)),
+      )
       setGithubPublishStatus('success')
-      setGithubPublishMessage('Publicado no GitHub')
+      setGithubPublishMessage('GitHub atualizado.')
       if (
-        (Array.isArray(result?.publishedGalleryIds) && result.publishedGalleryIds.length) ||
-        (Array.isArray(result?.publishedReviewIds) && result.publishedReviewIds.length)
+        selectedGalleryEntries.length ||
+        selectedReviewEntries.length ||
+        selectedGalleryIdsToDelete.length ||
+        selectedReviewIdsToDelete.length
       ) {
         await Promise.all([
           refreshGithubGalleryEntries({ silent: true, cacheBuster: result.commitSha || Date.now() }),
@@ -770,6 +800,21 @@ function App() {
       }
     } catch (error) {
       console.error('Erro ao publicar no GitHub', error)
+
+      const notFoundInGithub =
+        error instanceof Error &&
+        error.message.includes('Nenhum item publicado do GitHub corresponde à operação solicitada.')
+
+      if (notFoundInGithub) {
+        await Promise.all([
+          refreshGithubGalleryEntries({ silent: true, cacheBuster: Date.now() }),
+          refreshGithubPublicReviews({ silent: true, cacheBuster: Date.now() }),
+        ])
+        setGithubPublishStatus('success')
+        setGithubPublishMessage('GitHub atualizado.')
+        return
+      }
+
       setGithubPublishStatus('error')
       setGithubPublishMessage(
         error instanceof Error && error.message ? error.message : 'Falha ao publicar',
@@ -779,110 +824,12 @@ function App() {
     }
   }
 
-  async function deleteGithubPublishedItems({ galleryIds = [], reviewIds = [] }) {
-    if (githubPublishPending) {
-      throw new Error('Aguarde a publicação atual terminar antes de excluir no GitHub.')
-    }
-
-    if (!isGithubPublishConfigured) {
-      throw new Error('Endpoint do Worker não configurado.')
-    }
-
-    if (!adminCredential) {
-      throw new Error('Faça login no ADM novamente antes de excluir no GitHub.')
-    }
-
-    if (!galleryIds.length && !reviewIds.length) {
-      throw new Error('Nenhum item do GitHub foi selecionado para exclusão.')
-    }
-
-    setGithubPublishPending(true)
-    setGithubPublishStatus('pending')
-    setGithubPublishMessage('Excluindo do GitHub...')
-
-    try {
-      const result = await publishGithubWorkflow(adminCredential, {
-        galleryIdsToDelete: galleryIds,
-        reviewIdsToDelete: reviewIds,
-      })
-
-      setGithubGalleryEntries((current) => current.filter((entry) => !galleryIds.includes(entry.id)))
-      setGithubPublicReviews((current) => current.filter((review) => !reviewIds.includes(review.id)))
-      setOptimisticGithubGalleryIds((current) => current.filter((id) => !galleryIds.includes(id)))
-      setOptimisticGithubReviewIds((current) => current.filter((id) => !reviewIds.includes(id)))
-      setGithubPublishStatus('success')
-      setGithubPublishMessage('Excluído do GitHub')
-      await Promise.all([
-        refreshGithubGalleryEntries({ silent: true, cacheBuster: result.commitSha || Date.now() }),
-        refreshGithubPublicReviews({ silent: true, cacheBuster: result.commitSha || Date.now() }),
-      ])
-      return result
-    } catch (error) {
-      console.error('Erro ao excluir item publicado no GitHub', error)
-
-      const notFoundInGithub =
-        error instanceof Error &&
-        error.message.includes('Nenhum item publicado do GitHub corresponde à operação solicitada.')
-
-      if (notFoundInGithub) {
-        setGithubGalleryEntries((current) => current.filter((entry) => !galleryIds.includes(entry.id)))
-        setGithubPublicReviews((current) => current.filter((review) => !reviewIds.includes(review.id)))
-        setOptimisticGithubGalleryIds((current) => current.filter((id) => !galleryIds.includes(id)))
-        setOptimisticGithubReviewIds((current) => current.filter((id) => !reviewIds.includes(id)))
-        await Promise.all([
-          refreshGithubGalleryEntries({ silent: true, cacheBuster: Date.now() }),
-          refreshGithubPublicReviews({ silent: true, cacheBuster: Date.now() }),
-        ])
-        setGithubPublishStatus('success')
-        setGithubPublishMessage('O item já não estava mais publicado no GitHub.')
-        return {
-          alreadyDeleted: true,
-          deletedGalleryIds: [],
-          deletedReviewIds: [],
-        }
-      }
-
-      setGithubPublishStatus('error')
-      setGithubPublishMessage(
-        error instanceof Error && error.message ? error.message : 'Falha ao excluir no GitHub',
-      )
-      throw error
-    } finally {
-      setGithubPublishPending(false)
-    }
-  }
-
-  async function handleReviewDeleteByDestination(id, destination) {
-    if (destination === 'github') {
-      setReviewMutationPending(true)
-
-      try {
-        await deleteGithubPublishedItems({ reviewIds: [id] })
-        showToast('Excluído do GitHub.')
-      } catch (error) {
-        showToast(getReviewErrorMessage(error, 'Não foi possível excluir a avaliação do GitHub.'))
-      } finally {
-        setReviewMutationPending(false)
-      }
-
-      return
-    }
-
-    setReviewMutationPending(true)
-
-    try {
-      await deleteSupabaseReview(id, SITE_PASSWORD)
-      await Promise.all([refreshAdminReviews({ silent: true }), refreshPublicReviews({ silent: true })])
-      showToast('Excluído do Supabase.')
-    } catch (error) {
-      console.error('Erro ao excluir avaliação', error)
-      showToast(getReviewErrorMessage(error, 'Não foi possível excluir a avaliação.'))
-    } finally {
-      setReviewMutationPending(false)
-    }
-  }
-
-  async function savePendingSupabaseChanges(selectedGalleryEntryIds = [], selectedReviewIds = []) {
+  async function savePendingSupabaseChanges({
+    galleryIdsToPublish = [],
+    reviewIdsToPublish = [],
+    galleryIdsToDelete = [],
+    reviewIdsToDelete = [],
+  } = {}) {
     if (!isSupabaseConfigured) {
       setSupabaseMediaStatus('error')
       setSupabaseMediaMessage('Supabase não configurado.')
@@ -897,25 +844,41 @@ function App() {
 
     const pendingAssets = collectPendingEditableMedia(siteState.draftContent)
     const selectedDraftGalleryEntryIds = galleryEntries
-      .filter((entry) => entry.status === 'draft' && selectedGalleryEntryIds.includes(entry.id))
+      .filter((entry) => entry.status === 'draft' && galleryIdsToPublish.includes(entry.id))
       .map((entry) => entry.id)
     const selectedPendingReviewIds = reviews
-      .filter((review) => review.status !== 'approved' && selectedReviewIds.includes(review.id))
+      .filter((review) => review.status !== 'approved' && reviewIdsToPublish.includes(review.id))
+      .map((review) => review.id)
+    const selectedGalleryIdsToDelete = galleryEntries
+      .filter((entry) => entry.status === 'published' && galleryIdsToDelete.includes(entry.id))
+      .map((entry) => entry.id)
+    const selectedReviewIdsToDelete = reviews
+      .filter((review) => review.status === 'approved' && reviewIdsToDelete.includes(review.id))
       .map((review) => review.id)
 
-    if (!Object.keys(pendingAssets).length && !selectedDraftGalleryEntryIds.length && !selectedPendingReviewIds.length) {
+    if (
+      !Object.keys(pendingAssets).length &&
+      !selectedDraftGalleryEntryIds.length &&
+      !selectedPendingReviewIds.length &&
+      !selectedGalleryIdsToDelete.length &&
+      !selectedReviewIdsToDelete.length
+    ) {
       setSupabaseMediaStatus('idle')
-      setSupabaseMediaMessage('Nenhuma alteração marcada para publicar no Supabase.')
+      setSupabaseMediaMessage('Nenhum item marcado para o Supabase.')
       return {
         savedEditableMedia: false,
         publishedGalleryDrafts: false,
         publishedReviews: false,
+        deletedGalleryItems: false,
+        deletedReviews: false,
       }
     }
 
     let savedEditableMedia = false
     let publishedGalleryDrafts = false
     let publishedReviews = false
+    let deletedGalleryItems = false
+    let deletedReviews = false
 
     const uploadedUrls = await uploadEditableMediaAssets({
       assets: pendingAssets,
@@ -957,31 +920,61 @@ function App() {
       }
     }
 
-    setSupabaseMediaStatus('success')
-    if (savedEditableMedia && publishedGalleryDrafts && publishedReviews) {
-      setSupabaseMediaMessage('Mídias, fotos e avaliações foram publicadas no Supabase.')
-    } else if (savedEditableMedia && publishedGalleryDrafts) {
-      setSupabaseMediaMessage('Mídias e fotos foram publicadas no Supabase.')
-    } else if (savedEditableMedia && publishedReviews) {
-      setSupabaseMediaMessage('Mídias e avaliações foram publicadas no Supabase.')
-    } else if (publishedGalleryDrafts && publishedReviews) {
-      setSupabaseMediaMessage('Fotos e avaliações marcadas como "Subir" foram publicadas.')
-    } else if (savedEditableMedia) {
-      setSupabaseMediaMessage('Mídias editáveis salvas no Supabase.')
-    } else if (publishedGalleryDrafts) {
-      setSupabaseMediaMessage('Fotos marcadas como "Subir" foram publicadas.')
-    } else if (publishedReviews) {
-      setSupabaseMediaMessage('Avaliações marcadas como "Subir" foram publicadas.')
+    if (selectedGalleryIdsToDelete.length) {
+      setGalleryMutationPending(true)
+
+      try {
+        const galleryEntriesToDelete = galleryEntries.filter((entry) =>
+          selectedGalleryIdsToDelete.includes(entry.id),
+        )
+        await Promise.all(
+          galleryEntriesToDelete.map(async (entry) => {
+            await deleteSupabaseGalleryEntry(entry, SITE_PASSWORD)
+            await deleteGalleryDraftFile(entry.id).catch(() => {})
+          }),
+        )
+        await Promise.all([
+          refreshAdminGalleryEntries({ silent: true }),
+          refreshPublicGalleryEntries({ silent: true }),
+        ])
+        deletedGalleryItems = true
+      } finally {
+        setGalleryMutationPending(false)
+      }
     }
+
+    if (selectedReviewIdsToDelete.length) {
+      setReviewMutationPending(true)
+
+      try {
+        await Promise.all(
+          selectedReviewIdsToDelete.map((reviewId) => deleteSupabaseReview(reviewId, SITE_PASSWORD)),
+        )
+        await Promise.all([refreshAdminReviews({ silent: true }), refreshPublicReviews({ silent: true })])
+        deletedReviews = true
+      } finally {
+        setReviewMutationPending(false)
+      }
+    }
+
+    setSupabaseMediaStatus('success')
+    setSupabaseMediaMessage('Supabase atualizado.')
 
     return {
       savedEditableMedia,
       publishedGalleryDrafts,
       publishedReviews,
+      deletedGalleryItems,
+      deletedReviews,
     }
   }
 
-  async function handleSupabaseMediaUpload(selectedGalleryEntryIds, selectedReviewIds) {
+  async function handleSupabaseMediaUpload({
+    galleryIdsToPublish = [],
+    reviewIdsToPublish = [],
+    galleryIdsToDelete = [],
+    reviewIdsToDelete = [],
+  } = {}) {
     if (supabaseMediaPending) {
       return
     }
@@ -991,7 +984,12 @@ function App() {
     setSupabaseMediaMessage('Salvando...')
 
     try {
-      await savePendingSupabaseChanges(selectedGalleryEntryIds, selectedReviewIds)
+      await savePendingSupabaseChanges({
+        galleryIdsToPublish,
+        reviewIdsToPublish,
+        galleryIdsToDelete,
+        reviewIdsToDelete,
+      })
     } catch (error) {
       console.error('Erro ao subir mídia para o Supabase', error)
       setSupabaseMediaStatus('error')
@@ -1057,42 +1055,6 @@ function App() {
       console.error('Erro ao atualizar legenda da foto', error)
       showToast(getReviewErrorMessage(error, 'Não foi possível salvar o texto da foto.'))
       await refreshAdminGalleryEntries({ silent: true })
-    }
-  }
-
-  async function handleDeleteExtraPhoto(_category, id, destination) {
-    const entry = adminExtraPhotos.carpintaria
-      .concat(adminExtraPhotos.alvenaria)
-      .find((item) => item.id === id)
-    if (!entry) {
-      return
-    }
-
-    setGalleryMutationPending(true)
-
-    try {
-      if (destination === 'github') {
-        await deleteGithubPublishedItems({ galleryIds: [id] })
-        showToast('Excluído do GitHub.')
-        return
-      }
-
-      if (!isSupabaseConfigured || !entry.hasSupabaseRecord) {
-        throw new Error('Esta foto não existe mais no Supabase. Exclua-a pelo GitHub.')
-      }
-
-      await deleteSupabaseGalleryEntry(entry, SITE_PASSWORD)
-      await deleteGalleryDraftFile(id).catch(() => {})
-      await Promise.all([
-        refreshAdminGalleryEntries({ silent: true }),
-        refreshPublicGalleryEntries({ silent: true }),
-      ])
-      showToast('Excluído do Supabase.')
-    } catch (error) {
-      console.error('Erro ao excluir foto', error)
-      showToast(getReviewErrorMessage(error, 'Não foi possível excluir a foto.'))
-    } finally {
-      setGalleryMutationPending(false)
     }
   }
 
@@ -1402,10 +1364,8 @@ function App() {
           }}
           onTextChange={handleTextChange}
           onMediaReplace={handleMediaReplace}
-          onReviewDelete={handleReviewDeleteByDestination}
           onAddExtraPhotos={handleAddExtraPhotos}
           onUpdateExtraPhoto={handleUpdateExtraPhoto}
-          onDeleteExtraPhoto={handleDeleteExtraPhoto}
           supabaseMediaPending={supabaseMediaPending}
           supabaseMediaStatus={supabaseMediaStatus}
           supabaseMediaMessage={supabaseMediaMessage}
