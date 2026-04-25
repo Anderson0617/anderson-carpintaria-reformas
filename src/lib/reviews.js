@@ -3,6 +3,16 @@ import { getSupabaseClient } from './supabase'
 const REVIEWS_TABLE = 'reviews'
 const GITHUB_REVIEWS_URL = `${import.meta.env.BASE_URL}published/reviews.json`
 
+function buildGithubJsonUrl(baseUrl, cacheBuster) {
+  const normalizedBase = String(baseUrl || '')
+  if (!cacheBuster) {
+    return normalizedBase
+  }
+
+  const separator = normalizedBase.includes('?') ? '&' : '?'
+  return `${normalizedBase}${separator}t=${encodeURIComponent(cacheBuster)}`
+}
+
 function normalizeReview(row) {
   return {
     id: row.id,
@@ -43,8 +53,8 @@ export async function listPublicReviews() {
   return sortReviews(normalizeReviewList(data))
 }
 
-export async function listGithubPublicReviews() {
-  const response = await fetch(GITHUB_REVIEWS_URL, {
+export async function listGithubPublicReviews({ cacheBuster } = {}) {
+  const response = await fetch(buildGithubJsonUrl(GITHUB_REVIEWS_URL, cacheBuster), {
     cache: 'no-store',
   })
 

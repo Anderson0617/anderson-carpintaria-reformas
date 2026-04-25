@@ -483,9 +483,9 @@ function App() {
     }
   }
 
-  async function refreshGithubPublicReviews({ silent = false } = {}) {
+  async function refreshGithubPublicReviews({ silent = false, cacheBuster = Date.now() } = {}) {
     try {
-      const nextReviews = await listGithubPublicReviews()
+      const nextReviews = await listGithubPublicReviews({ cacheBuster })
       setGithubPublicReviews(nextReviews)
       setOptimisticGithubReviewIds((current) =>
         current.filter((id) => !nextReviews.some((review) => review.id === id)),
@@ -564,9 +564,9 @@ function App() {
     }
   }
 
-  async function refreshGithubGalleryEntries({ silent = false } = {}) {
+  async function refreshGithubGalleryEntries({ silent = false, cacheBuster = Date.now() } = {}) {
     try {
-      const nextEntries = await listGithubGalleryEntries()
+      const nextEntries = await listGithubGalleryEntries({ cacheBuster })
       setGithubGalleryEntries(nextEntries)
       setOptimisticGithubGalleryIds((current) =>
         current.filter((id) => !nextEntries.some((entry) => entry.id === id)),
@@ -755,6 +755,8 @@ function App() {
       })
       setOptimisticGithubGalleryIds((current) => [...new Set([...current, ...galleryItems.map((item) => item.id)])])
       setOptimisticGithubReviewIds((current) => [...new Set([...current, ...reviewItems.map((item) => item.id)])])
+      setGithubGalleryEntries((current) => [...current])
+      setGithubPublicReviews((current) => [...current])
       setGithubPublishStatus('success')
       setGithubPublishMessage('Publicado no GitHub')
       if (
@@ -762,8 +764,8 @@ function App() {
         (Array.isArray(result?.publishedReviewIds) && result.publishedReviewIds.length)
       ) {
         await Promise.all([
-          refreshGithubGalleryEntries({ silent: true }),
-          refreshGithubPublicReviews({ silent: true }),
+          refreshGithubGalleryEntries({ silent: true, cacheBuster: result.commitSha || Date.now() }),
+          refreshGithubPublicReviews({ silent: true, cacheBuster: result.commitSha || Date.now() }),
         ])
       }
     } catch (error) {
@@ -804,11 +806,16 @@ function App() {
         reviewIdsToDelete: reviewIds,
       })
 
+      setGithubGalleryEntries((current) => current.filter((entry) => !galleryIds.includes(entry.id)))
+      setGithubPublicReviews((current) => current.filter((review) => !reviewIds.includes(review.id)))
       setOptimisticGithubGalleryIds((current) => current.filter((id) => !galleryIds.includes(id)))
       setOptimisticGithubReviewIds((current) => current.filter((id) => !reviewIds.includes(id)))
       setGithubPublishStatus('success')
       setGithubPublishMessage('Excluído do GitHub')
-      await Promise.all([refreshGithubGalleryEntries({ silent: true }), refreshGithubPublicReviews({ silent: true })])
+      await Promise.all([
+        refreshGithubGalleryEntries({ silent: true, cacheBuster: result.commitSha || Date.now() }),
+        refreshGithubPublicReviews({ silent: true, cacheBuster: result.commitSha || Date.now() }),
+      ])
       return result
     } catch (error) {
       console.error('Erro ao excluir item publicado no GitHub', error)
@@ -818,9 +825,14 @@ function App() {
         error.message.includes('Nenhum item publicado do GitHub corresponde à operação solicitada.')
 
       if (notFoundInGithub) {
+        setGithubGalleryEntries((current) => current.filter((entry) => !galleryIds.includes(entry.id)))
+        setGithubPublicReviews((current) => current.filter((review) => !reviewIds.includes(review.id)))
         setOptimisticGithubGalleryIds((current) => current.filter((id) => !galleryIds.includes(id)))
         setOptimisticGithubReviewIds((current) => current.filter((id) => !reviewIds.includes(id)))
-        await Promise.all([refreshGithubGalleryEntries({ silent: true }), refreshGithubPublicReviews({ silent: true })])
+        await Promise.all([
+          refreshGithubGalleryEntries({ silent: true, cacheBuster: Date.now() }),
+          refreshGithubPublicReviews({ silent: true, cacheBuster: Date.now() }),
+        ])
         setGithubPublishStatus('success')
         setGithubPublishMessage('O item já não estava mais publicado no GitHub.')
         return {

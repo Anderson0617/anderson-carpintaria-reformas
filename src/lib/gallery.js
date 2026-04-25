@@ -5,6 +5,16 @@ export const GALLERY_BUCKET = 'site-gallery'
 const GALLERY_CATEGORIES = ['carpintaria', 'alvenaria']
 const GITHUB_GALLERY_URL = `${import.meta.env.BASE_URL}published/gallery.json`
 
+function buildGithubJsonUrl(baseUrl, cacheBuster) {
+  const normalizedBase = String(baseUrl || '')
+  if (!cacheBuster) {
+    return normalizedBase
+  }
+
+  const separator = normalizedBase.includes('?') ? '&' : '?'
+  return `${normalizedBase}${separator}t=${encodeURIComponent(cacheBuster)}`
+}
+
 function getPublicImageUrl(imagePath) {
   const supabase = getSupabaseClient()
   const { data } = supabase.storage.from(GALLERY_BUCKET).getPublicUrl(imagePath)
@@ -115,8 +125,8 @@ export async function listPublicGalleryEntries() {
   return normalizeGalleryEntries(data)
 }
 
-export async function listGithubGalleryEntries() {
-  const response = await fetch(GITHUB_GALLERY_URL, {
+export async function listGithubGalleryEntries({ cacheBuster } = {}) {
+  const response = await fetch(buildGithubJsonUrl(GITHUB_GALLERY_URL, cacheBuster), {
     cache: 'no-store',
   })
 
