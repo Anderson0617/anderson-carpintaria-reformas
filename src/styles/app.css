@@ -648,6 +648,7 @@
   break-inside: avoid;
   margin-bottom: 18px;
   overflow: hidden;
+  min-width: 0;
 }
 
 .masonry-card img {
@@ -658,6 +659,13 @@
 
 .masonry-card__body {
   padding: 16px 18px 18px;
+  min-width: 0;
+}
+
+.masonry-card__body p {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .masonry-card--placeholder {
@@ -763,6 +771,9 @@ textarea {
   margin-top: 12px;
   color: #cadeff;
   font-size: 0.9rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .footer {
@@ -998,6 +1009,8 @@ textarea {
   display: grid;
   gap: 12px;
   padding: 18px;
+  min-width: 0;
+  overflow: hidden;
   border-radius: 18px;
   background: rgba(8, 15, 26, 0.92);
   border: 1px solid rgba(137, 177, 255, 0.1);
@@ -1015,12 +1028,16 @@ textarea {
   color: #bfd5fb;
   font-size: 0.92rem;
   line-height: 1.45;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .admin-photo-controls {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
+  min-width: 0;
 }
 
 .admin-photo-control {
@@ -1028,6 +1045,8 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  flex: 1 1 180px;
+  min-width: 0;
   padding: 10px 12px;
   border-radius: 14px;
   border: 1px solid rgba(137, 177, 255, 0.18);
@@ -1035,6 +1054,9 @@ textarea {
   color: var(--muted);
   cursor: pointer;
   font-size: 0.92rem;
+  text-align: center;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .admin-photo-control input {
@@ -1049,6 +1071,8 @@ textarea {
 
 .admin-review-card {
   padding: 18px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .admin-review-card__top {
@@ -1056,12 +1080,24 @@ textarea {
   flex-wrap: wrap;
   gap: 12px;
   color: var(--muted);
+  min-width: 0;
 }
 
 .admin-review-card__region {
   margin-top: 10px;
   color: #bfd5fb;
   font-size: 0.94rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.admin-review-card p,
+.admin-review-card span,
+.admin-review-card strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .sr-only {
@@ -1081,12 +1117,16 @@ textarea {
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 14px;
+  min-width: 0;
 }
 
 .admin-review-actions button,
 .admin-photo-card button {
   min-height: 38px;
   padding: 0 14px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   border-radius: 999px;
   background: rgba(16, 28, 48, 0.9);
   color: var(--text);
