@@ -146,6 +146,9 @@ function DestinationControls({ item, selection, disabled, onSelectionChange }) {
             <span>Excluir GitHub</span>
           </label>
         ) : null}
+        {!item.hasGithubRecord && item.isPublishedInSupabase ? (
+          <span className="admin-destination-option is-disabled">Não publicado no GitHub</span>
+        ) : null}
         {item.isPublishedInSupabase ? (
           <label className={`admin-destination-option ${selection.deleteSupabase ? 'is-active is-danger' : ''}`}>
             <input
@@ -235,6 +238,7 @@ function ExtraPhotoManager({
   onAdd,
   onUpdate,
   onSelectionChange,
+  onDeletePending,
 }) {
   async function handleUpload(event) {
     const files = Array.from(event.target.files || [])
@@ -271,6 +275,16 @@ function ExtraPhotoManager({
                 disabled={disabled}
                 onSelectionChange={onSelectionChange}
               />
+              {!item.isPublic ? (
+                <button
+                  type="button"
+                  className="button button--ghost button--small admin-inline-delete"
+                  disabled={disabled}
+                  onClick={() => onDeletePending(category, item.id)}
+                >
+                  Excluir foto
+                </button>
+              ) : null}
               <textarea
                 rows="3"
                 placeholder="Texto ou descrição desta foto"
@@ -304,6 +318,8 @@ function AdminPanel({
   onMediaReplace,
   onAddExtraPhotos,
   onUpdateExtraPhoto,
+  onDeletePendingExtraPhoto,
+  onDeletePendingReview,
   supabaseMediaPending,
   supabaseMediaStatus,
   supabaseMediaMessage,
@@ -485,6 +501,7 @@ function AdminPanel({
           selections={gallerySelections}
           onAdd={onAddExtraPhotos}
           onUpdate={onUpdateExtraPhoto}
+          onDeletePending={onDeletePendingExtraPhoto}
           onSelectionChange={(id, key, checked) =>
             setGallerySelections((current) => ({
               ...current,
@@ -505,6 +522,7 @@ function AdminPanel({
           selections={gallerySelections}
           onAdd={onAddExtraPhotos}
           onUpdate={onUpdateExtraPhoto}
+          onDeletePending={onDeletePendingExtraPhoto}
           onSelectionChange={(id, key, checked) =>
             setGallerySelections((current) => ({
               ...current,
@@ -569,6 +587,16 @@ function AdminPanel({
                       }))
                     }
                   />
+                  {!review.isPublic ? (
+                    <button
+                      type="button"
+                      className="button button--ghost button--small admin-inline-delete"
+                      disabled={reviewActionPending}
+                      onClick={() => onDeletePendingReview(review.id)}
+                    >
+                      Excluir avaliação
+                    </button>
+                  ) : null}
                 </article>
               ))
             ) : (

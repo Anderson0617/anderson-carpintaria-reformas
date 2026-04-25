@@ -1058,6 +1058,53 @@ function App() {
     }
   }
 
+  async function handleDeletePendingExtraPhoto(_category, id) {
+    if (!isSupabaseConfigured) {
+      return
+    }
+
+    const entry = galleryEntries.find((item) => item.id === id)
+    if (!entry) {
+      return
+    }
+
+    setGalleryMutationPending(true)
+
+    try {
+      await deleteSupabaseGalleryEntry(entry, SITE_PASSWORD)
+      await deleteGalleryDraftFile(id).catch(() => {})
+      await Promise.all([
+        refreshAdminGalleryEntries({ silent: true }),
+        refreshPublicGalleryEntries({ silent: true }),
+      ])
+      showToast('Foto excluída.')
+    } catch (error) {
+      console.error('Erro ao excluir foto pendente', error)
+      showToast(getReviewErrorMessage(error, 'Não foi possível excluir a foto.'))
+    } finally {
+      setGalleryMutationPending(false)
+    }
+  }
+
+  async function handleDeletePendingReview(id) {
+    if (!isSupabaseConfigured) {
+      return
+    }
+
+    setReviewMutationPending(true)
+
+    try {
+      await deleteSupabaseReview(id, SITE_PASSWORD)
+      await Promise.all([refreshAdminReviews({ silent: true }), refreshPublicReviews({ silent: true })])
+      showToast('Avaliação excluída.')
+    } catch (error) {
+      console.error('Erro ao excluir avaliação pendente', error)
+      showToast(getReviewErrorMessage(error, 'Não foi possível excluir a avaliação.'))
+    } finally {
+      setReviewMutationPending(false)
+    }
+  }
+
   const content = siteState.publishedContent
   const mergedPublicReviews = mergePublicReviewLists(githubPublicReviews, publicReviews)
   const mergedPublicGalleryEntries = mergePublicGalleryEntries(githubGalleryEntries, publicGalleryEntries)
@@ -1366,6 +1413,8 @@ function App() {
           onMediaReplace={handleMediaReplace}
           onAddExtraPhotos={handleAddExtraPhotos}
           onUpdateExtraPhoto={handleUpdateExtraPhoto}
+          onDeletePendingExtraPhoto={handleDeletePendingExtraPhoto}
+          onDeletePendingReview={handleDeletePendingReview}
           supabaseMediaPending={supabaseMediaPending}
           supabaseMediaStatus={supabaseMediaStatus}
           supabaseMediaMessage={supabaseMediaMessage}

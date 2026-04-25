@@ -1084,6 +1084,19 @@ textarea {
   color: #ffe6ea;
 }
 
+.admin-destination-option.is-disabled {
+  cursor: default;
+  opacity: 0.78;
+  border-style: dashed;
+}
+
+.admin-inline-delete {
+  justify-self: start;
+  min-height: 34px;
+  padding-inline: 12px;
+  font-size: 0.82rem;
+}
+
 .admin-review-card {
   padding: 18px;
   min-width: 0;
