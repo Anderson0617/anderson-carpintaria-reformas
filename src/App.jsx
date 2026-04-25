@@ -35,6 +35,7 @@ import { isSupabaseConfigured } from './lib/supabase'
 import { listRecentVisits, getSiteVisits, incrementSiteVisits } from './lib/visitors'
 import { getApproxLocation, getOrCreateVisitorSessionId } from './lib/location'
 import { isGithubPublishConfigured, publishGithubWorkflow } from './lib/githubPublish'
+import { listGithubHiddenState } from './lib/githubVisibility'
 import { EDITABLE_MEDIA_PATHS, isDataUrl, listPublicEditableMedia, uploadEditableMediaAssets } from './lib/mediaAssets'
 import {
   deleteGalleryDraftFile,
@@ -95,16 +96,18 @@ function collectPendingEditableMedia(content) {
   )
 }
 
-function mergeAdminGallerySources(supabaseEntries, githubEntries, optimisticGithubIds) {
+function mergeAdminGallerySources(supabaseEntries, githubEntries, optimisticGithubIds, hiddenGithubIds) {
   const supabaseById = new Map(supabaseEntries.map((entry) => [entry.id, entry]))
   const githubById = new Map(githubEntries.map((entry) => [entry.id, entry]))
-  const ids = new Set([...supabaseById.keys(), ...githubById.keys(), ...optimisticGithubIds])
+  const hiddenIds = new Set(hiddenGithubIds)
+  const ids = new Set([...supabaseById.keys(), ...githubById.keys(), ...optimisticGithubIds, ...hiddenIds])
 
   return [...ids].map((id) => {
     const supabaseEntry = supabaseById.get(id)
     const githubEntry = githubById.get(id)
     const isPublishedInSupabase = supabaseEntry?.status === 'published'
-    const isPublishedInGithub = githubById.has(id) || optimisticGithubIds.includes(id)
+    const isHiddenInGithub = hiddenIds.has(id)
+    const isPublishedInGithub = (githubById.has(id) || optimisticGithubIds.includes(id)) && !isHiddenInGithub
     const baseEntry = supabaseEntry ?? githubEntry
 
     return {
@@ -124,23 +127,26 @@ function mergeAdminGallerySources(supabaseEntries, githubEntries, optimisticGith
       publishedAt: supabaseEntry?.publishedAt ?? githubEntry?.publishedAt ?? null,
       hasSupabaseRecord: Boolean(supabaseEntry),
       hasGithubRecord: Boolean(githubEntry),
+      isHiddenInGithub,
       isPublishedInSupabase,
       isPublishedInGithub,
-      isPublic: isPublishedInSupabase || isPublishedInGithub,
+      isPublic: !isHiddenInGithub && (isPublishedInSupabase || isPublishedInGithub),
     }
   })
 }
 
-function mergeAdminReviewSources(supabaseReviews, githubReviews, optimisticGithubIds) {
+function mergeAdminReviewSources(supabaseReviews, githubReviews, optimisticGithubIds, hiddenGithubIds) {
   const supabaseById = new Map(supabaseReviews.map((review) => [review.id, review]))
   const githubById = new Map(githubReviews.map((review) => [review.id, review]))
-  const ids = new Set([...supabaseById.keys(), ...githubById.keys(), ...optimisticGithubIds])
+  const hiddenIds = new Set(hiddenGithubIds)
+  const ids = new Set([...supabaseById.keys(), ...githubById.keys(), ...optimisticGithubIds, ...hiddenIds])
 
   return [...ids].map((id) => {
     const supabaseReview = supabaseById.get(id)
     const githubReview = githubById.get(id)
     const isPublishedInSupabase = supabaseReview?.status === 'approved'
-    const isPublishedInGithub = githubById.has(id) || optimisticGithubIds.includes(id)
+    const isHiddenInGithub = hiddenIds.has(id)
+    const isPublishedInGithub = (githubById.has(id) || optimisticGithubIds.includes(id)) && !isHiddenInGithub
     const baseReview = supabaseReview ?? githubReview
 
     return {
@@ -163,9 +169,10 @@ function mergeAdminReviewSources(supabaseReviews, githubReviews, optimisticGithu
       precision: supabaseReview?.precision ?? githubReview?.precision ?? 'unknown',
       hasSupabaseRecord: Boolean(supabaseReview),
       hasGithubRecord: Boolean(githubReview),
+      isHiddenInGithub,
       isPublishedInSupabase,
       isPublishedInGithub,
-      isPublic: isPublishedInSupabase || isPublishedInGithub,
+      isPublic: !isHiddenInGithub && (isPublishedInSupabase || isPublishedInGithub),
     }
   })
 }
@@ -255,6 +262,8 @@ function App() {
   const [githubPublishMessage, setGithubPublishMessage] = useState('Aguardando')
   const [optimisticGithubGalleryIds, setOptimisticGithubGalleryIds] = useState([])
   const [optimisticGithubReviewIds, setOptimisticGithubReviewIds] = useState([])
+  const [githubHiddenGalleryIds, setGithubHiddenGalleryIds] = useState([])
+  const [githubHiddenReviewIds, setGithubHiddenReviewIds] = useState([])
   const [supabaseMediaPending, setSupabaseMediaPending] = useState(false)
   const [supabaseMediaStatus, setSupabaseMediaStatus] = useState('idle')
   const [supabaseMediaMessage, setSupabaseMediaMessage] = useState('')
@@ -345,6 +354,10 @@ function App() {
 
   useEffect(() => {
     refreshGithubPublicReviews({ silent: true })
+  }, [])
+
+  useEffect(() => {
+    refreshGithubHiddenState({ silent: true })
   }, [])
 
   useEffect(() => {
@@ -495,6 +508,21 @@ function App() {
       console.error('Erro ao carregar avaliações publicadas no GitHub', error)
       if (!silent) {
         showToast(getReviewErrorMessage(error, 'Não foi possível carregar as avaliações publicadas no GitHub.'))
+      }
+      return null
+    }
+  }
+
+  async function refreshGithubHiddenState({ silent = false, cacheBuster = Date.now() } = {}) {
+    try {
+      const nextState = await listGithubHiddenState({ cacheBuster })
+      setGithubHiddenGalleryIds(nextState.hiddenGalleryIds)
+      setGithubHiddenReviewIds(nextState.hiddenReviewIds)
+      return nextState
+    } catch (error) {
+      console.error('Erro ao carregar ocultações publicadas no GitHub', error)
+      if (!silent) {
+        showToast(getReviewErrorMessage(error, 'Não foi possível carregar as ocultações publicadas no GitHub.'))
       }
       return null
     }
@@ -710,8 +738,8 @@ function App() {
     const selectedReviewEntries = reviews.filter(
       (review) => reviewIdsToPublish.includes(review.id) && !githubPublishedReviewIds.has(review.id),
     )
-    const selectedGalleryIdsToDelete = galleryIdsToDelete.filter((id) => githubPublishedGalleryIds.has(id))
-    const selectedReviewIdsToDelete = reviewIdsToDelete.filter((id) => githubPublishedReviewIds.has(id))
+    const selectedGalleryIdsToDelete = [...new Set(galleryIdsToDelete)]
+    const selectedReviewIdsToDelete = [...new Set(reviewIdsToDelete)]
 
     if (
       !selectedGalleryEntries.length &&
@@ -796,6 +824,7 @@ function App() {
         await Promise.all([
           refreshGithubGalleryEntries({ silent: true, cacheBuster: result.commitSha || Date.now() }),
           refreshGithubPublicReviews({ silent: true, cacheBuster: result.commitSha || Date.now() }),
+          refreshGithubHiddenState({ silent: true, cacheBuster: result.commitSha || Date.now() }),
         ])
       }
     } catch (error) {
@@ -809,6 +838,7 @@ function App() {
         await Promise.all([
           refreshGithubGalleryEntries({ silent: true, cacheBuster: Date.now() }),
           refreshGithubPublicReviews({ silent: true, cacheBuster: Date.now() }),
+          refreshGithubHiddenState({ silent: true, cacheBuster: Date.now() }),
         ])
         setGithubPublishStatus('success')
         setGithubPublishMessage('GitHub atualizado.')
@@ -1106,17 +1136,44 @@ function App() {
   }
 
   const content = siteState.publishedContent
-  const mergedPublicReviews = mergePublicReviewLists(githubPublicReviews, publicReviews)
-  const mergedPublicGalleryEntries = mergePublicGalleryEntries(githubGalleryEntries, publicGalleryEntries)
+  const visibleGithubPublicReviews = githubPublicReviews.filter(
+    (review) => !githubHiddenReviewIds.includes(review.id),
+  )
+  const visibleSupabasePublicReviews = publicReviews.filter(
+    (review) => !githubHiddenReviewIds.includes(review.id),
+  )
+  const mergedPublicReviews = mergePublicReviewLists(visibleGithubPublicReviews, visibleSupabasePublicReviews)
+  const visibleGithubGalleryEntries = githubGalleryEntries.filter(
+    (entry) => !githubHiddenGalleryIds.includes(entry.id),
+  )
+  const visibleSupabaseGalleryEntries = publicGalleryEntries.filter(
+    (entry) => !githubHiddenGalleryIds.includes(entry.id),
+  )
+  const mergedPublicGalleryEntries = mergePublicGalleryEntries(
+    visibleGithubGalleryEntries,
+    visibleSupabaseGalleryEntries,
+  )
   const publicExtraPhotos = isSupabaseConfigured
     ? groupGalleryEntries(mergedPublicGalleryEntries)
     : githubGalleryEntries.length
       ? groupGalleryEntries(githubGalleryEntries)
       : content.extraPhotos
   const adminExtraPhotos = isSupabaseConfigured
-    ? groupGalleryEntries(mergeAdminGallerySources(galleryEntries, githubGalleryEntries, optimisticGithubGalleryIds))
+    ? groupGalleryEntries(
+        mergeAdminGallerySources(
+          galleryEntries,
+          githubGalleryEntries,
+          optimisticGithubGalleryIds,
+          githubHiddenGalleryIds,
+        ),
+      )
     : siteState.draftContent.extraPhotos
-  const adminReviews = mergeAdminReviewSources(reviews, githubPublicReviews, optimisticGithubReviewIds)
+  const adminReviews = mergeAdminReviewSources(
+    reviews,
+    githubPublicReviews,
+    optimisticGithubReviewIds,
+    githubHiddenReviewIds,
+  )
   const navItems = [
     ['Início', '#inicio'],
     ['Serviços', '#servicos'],

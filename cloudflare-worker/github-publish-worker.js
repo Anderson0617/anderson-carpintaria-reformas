@@ -2,6 +2,7 @@ const RATE_LIMIT_WINDOW_MS = 3_000
 const requestBuckets = new Map()
 const GALLERY_JSON_PATH = 'public/published/gallery.json'
 const REVIEWS_JSON_PATH = 'public/published/reviews.json'
+const DELETED_JSON_PATH = 'public/published/deleted.json'
 const GALLERY_CATEGORIES = ['carpintaria', 'alvenaria']
 const MIME_EXTENSION_MAP = {
   'image/jpeg': 'jpg',
@@ -142,6 +143,13 @@ function getDefaultGalleryManifest() {
 
 function getDefaultReviewsManifest() {
   return []
+}
+
+function getDefaultDeletedManifest() {
+  return {
+    hiddenGalleryIds: [],
+    hiddenReviewIds: [],
+  }
 }
 
 function assertValidGalleryItem(item) {
@@ -316,6 +324,23 @@ async function loadReviewsManifest(env) {
   }
 }
 
+async function loadDeletedManifest(env) {
+  const contents = await getRepositoryContents(env, DELETED_JSON_PATH)
+  if (!contents?.content) {
+    return getDefaultDeletedManifest()
+  }
+
+  try {
+    const parsed = JSON.parse(atob(contents.content.replace(/\n/g, '')))
+    return {
+      hiddenGalleryIds: Array.isArray(parsed.hiddenGalleryIds) ? parsed.hiddenGalleryIds : [],
+      hiddenReviewIds: Array.isArray(parsed.hiddenReviewIds) ? parsed.hiddenReviewIds : [],
+    }
+  } catch {
+    return getDefaultDeletedManifest()
+  }
+}
+
 function upsertGalleryManifestEntry(manifest, entry) {
   const nextManifest = {
     carpintaria: [...(manifest.carpintaria || [])],
@@ -380,6 +405,15 @@ function removeReviewManifestEntries(manifest, reviewIds) {
   }
 }
 
+function addHiddenIds(list, entryIds) {
+  return [...new Set([...(list || []), ...entryIds])]
+}
+
+function removeHiddenIds(list, entryIds) {
+  const ids = new Set(entryIds)
+  return (list || []).filter((id) => !ids.has(id))
+}
+
 async function syncPublishedContent(
   env,
   { galleryItems = [], reviewItems = [], galleryIdsToDelete = [], reviewIdsToDelete = [] },
@@ -391,6 +425,7 @@ async function syncPublishedContent(
   const currentTreeSha = currentCommit.tree.sha
   let galleryManifest = await loadGalleryManifest(env)
   let reviewsManifest = await loadReviewsManifest(env)
+  let deletedManifest = await loadDeletedManifest(env)
   const treeEntries = []
   const publishedGalleryItems = []
   const publishedReviewItems = []
@@ -419,6 +454,7 @@ async function syncPublishedContent(
       publishedAt: now,
     }
 
+    deletedManifest.hiddenGalleryIds = removeHiddenIds(deletedManifest.hiddenGalleryIds, [rawItem.id])
     galleryManifest = upsertGalleryManifestEntry(galleryManifest, manifestEntry)
     publishedGalleryItems.push(manifestEntry)
   }
@@ -441,6 +477,7 @@ async function syncPublishedContent(
       precision: rawItem.precision ?? 'unknown',
     }
 
+    deletedManifest.hiddenReviewIds = removeHiddenIds(deletedManifest.hiddenReviewIds, [rawItem.id])
     reviewsManifest = upsertReviewManifestEntry(reviewsManifest, manifestEntry)
     publishedReviewItems.push(manifestEntry)
   }
@@ -449,15 +486,17 @@ async function syncPublishedContent(
     const removal = removeGalleryManifestEntries(galleryManifest, galleryIdsToDelete)
     galleryManifest = removal.nextManifest
     deletedGalleryIds.push(...removal.deletedIds)
+    deletedManifest.hiddenGalleryIds = addHiddenIds(deletedManifest.hiddenGalleryIds, galleryIdsToDelete)
   }
 
   if (reviewIdsToDelete.length) {
     const removal = removeReviewManifestEntries(reviewsManifest, reviewIdsToDelete)
     reviewsManifest = removal.nextManifest
     deletedReviewIds.push(...removal.deletedIds)
+    deletedManifest.hiddenReviewIds = addHiddenIds(deletedManifest.hiddenReviewIds, reviewIdsToDelete)
   }
 
-  if (galleryItems.length || deletedGalleryIds.length) {
+  if (galleryItems.length || galleryIdsToDelete.length) {
     const galleryJsonSha = await createBlob(env, `${JSON.stringify(galleryManifest, null, 2)}\n`, 'utf-8')
     treeEntries.push({
       path: GALLERY_JSON_PATH,
@@ -467,13 +506,23 @@ async function syncPublishedContent(
     })
   }
 
-  if (reviewItems.length || deletedReviewIds.length) {
+  if (reviewItems.length || reviewIdsToDelete.length) {
     const reviewsJsonSha = await createBlob(env, `${JSON.stringify(reviewsManifest, null, 2)}\n`, 'utf-8')
     treeEntries.push({
       path: REVIEWS_JSON_PATH,
       mode: '100644',
       type: 'blob',
       sha: reviewsJsonSha,
+    })
+  }
+
+  if (galleryItems.length || reviewItems.length || galleryIdsToDelete.length || reviewIdsToDelete.length) {
+    const deletedJsonSha = await createBlob(env, `${JSON.stringify(deletedManifest, null, 2)}\n`, 'utf-8')
+    treeEntries.push({
+      path: DELETED_JSON_PATH,
+      mode: '100644',
+      type: 'blob',
+      sha: deletedJsonSha,
     })
   }
 

@@ -47,7 +47,7 @@ function createSelectionForItem(item, currentSelection) {
   const next = createEmptySelection()
 
   if (item.isPublic) {
-    next.deleteGithub = item.hasGithubRecord ? currentSelection?.deleteGithub === true : false
+    next.deleteGithub = currentSelection?.deleteGithub === true
     next.deleteSupabase = item.isPublishedInSupabase ? currentSelection?.deleteSupabase === true : false
     return next
   }
@@ -135,20 +135,15 @@ function DestinationControls({ item, selection, disabled, onSelectionChange }) {
   if (item.isPublic) {
     return (
       <div className="admin-destination-controls" role="group" aria-label={`Destinos do item ${item.id}`}>
-        {item.hasGithubRecord ? (
-          <label className={`admin-destination-option ${selection.deleteGithub ? 'is-active is-danger' : ''}`}>
-            <input
-              type="checkbox"
-              checked={selection.deleteGithub}
-              disabled={disabled}
-              onChange={(event) => onSelectionChange(item.id, 'deleteGithub', event.target.checked)}
-            />
-            <span>Excluir GitHub</span>
-          </label>
-        ) : null}
-        {!item.hasGithubRecord && item.isPublishedInSupabase ? (
-          <span className="admin-destination-option is-disabled">Não publicado no GitHub</span>
-        ) : null}
+        <label className={`admin-destination-option ${selection.deleteGithub ? 'is-active is-danger' : ''}`}>
+          <input
+            type="checkbox"
+            checked={selection.deleteGithub}
+            disabled={disabled}
+            onChange={(event) => onSelectionChange(item.id, 'deleteGithub', event.target.checked)}
+          />
+          <span>Excluir GitHub</span>
+        </label>
         {item.isPublishedInSupabase ? (
           <label className={`admin-destination-option ${selection.deleteSupabase ? 'is-active is-danger' : ''}`}>
             <input
@@ -398,13 +393,13 @@ function AdminPanel({
       .filter((item) => !item.isPublic && gallerySelections[item.id]?.publishGithub)
       .map((item) => item.id)
     const galleryIdsToDelete = allPhotos
-      .filter((item) => item.hasGithubRecord && gallerySelections[item.id]?.deleteGithub)
+      .filter((item) => item.isPublic && gallerySelections[item.id]?.deleteGithub)
       .map((item) => item.id)
     const reviewIdsToPublish = reviews
       .filter((review) => !review.isPublic && reviewSelections[review.id]?.publishGithub)
       .map((review) => review.id)
     const reviewIdsToDelete = reviews
-      .filter((review) => review.hasGithubRecord && reviewSelections[review.id]?.deleteGithub)
+      .filter((review) => review.isPublic && reviewSelections[review.id]?.deleteGithub)
       .map((review) => review.id)
 
     await onGithubPublish({
