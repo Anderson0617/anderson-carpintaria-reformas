@@ -36,9 +36,11 @@ function getByPath(source, path) {
 
 function ReviewActions({ review, selection, onSelectionChange, onDelete, disabled }) {
   const isPublic = review.isPublic
-  const isGithubOnly = review.isPublishedInGithub && !review.isPublishedInSupabase
-  const isSupabaseOnly = review.isPublishedInSupabase && !review.isPublishedInGithub
-  const isPublicInBoth = review.isPublishedInSupabase && review.isPublishedInGithub
+  const hasGithubRecord = Boolean(review.hasGithubRecord)
+  const hasSupabaseRecord = Boolean(review.hasSupabaseRecord)
+  const isGithubOnly = hasGithubRecord && !review.isPublishedInSupabase
+  const isSupabaseOnly = hasSupabaseRecord && !hasGithubRecord
+  const isPublicInBoth = hasSupabaseRecord && hasGithubRecord
 
   return (
     <div className="admin-review-actions">
@@ -100,7 +102,7 @@ function ReviewActions({ review, selection, onSelectionChange, onDelete, disable
             Excluir do GitHub
           </button>
         </>
-      ) : isGithubOnly ? (
+      ) : hasGithubRecord ? (
         <button
           type="button"
           className="is-danger"
@@ -250,7 +252,7 @@ function ExtraPhotoManager({
                 disabled={disabled || !item.hasSupabaseRecord}
                 onChange={(event) => onUpdate(category, item.id, event.target.value)}
               />
-              {item.isPublishedInSupabase && item.isPublishedInGithub ? (
+              {item.hasSupabaseRecord && item.hasGithubRecord ? (
                 <>
                   <button
                     type="button"
@@ -269,7 +271,7 @@ function ExtraPhotoManager({
                     Excluir do GitHub
                   </button>
                 </>
-              ) : item.isPublishedInGithub ? (
+              ) : item.hasGithubRecord ? (
                 <button
                   type="button"
                   className="is-danger"

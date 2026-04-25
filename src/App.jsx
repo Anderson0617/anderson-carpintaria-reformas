@@ -812,6 +812,24 @@ function App() {
       return result
     } catch (error) {
       console.error('Erro ao excluir item publicado no GitHub', error)
+
+      const notFoundInGithub =
+        error instanceof Error &&
+        error.message.includes('Nenhum item publicado do GitHub corresponde à operação solicitada.')
+
+      if (notFoundInGithub) {
+        setOptimisticGithubGalleryIds((current) => current.filter((id) => !galleryIds.includes(id)))
+        setOptimisticGithubReviewIds((current) => current.filter((id) => !reviewIds.includes(id)))
+        await Promise.all([refreshGithubGalleryEntries({ silent: true }), refreshGithubPublicReviews({ silent: true })])
+        setGithubPublishStatus('success')
+        setGithubPublishMessage('O item já não estava mais publicado no GitHub.')
+        return {
+          alreadyDeleted: true,
+          deletedGalleryIds: [],
+          deletedReviewIds: [],
+        }
+      }
+
       setGithubPublishStatus('error')
       setGithubPublishMessage(
         error instanceof Error && error.message ? error.message : 'Falha ao excluir no GitHub',

@@ -1,4 +1,4 @@
-const RATE_LIMIT_WINDOW_MS = 15_000
+const RATE_LIMIT_WINDOW_MS = 3_000
 const requestBuckets = new Map()
 const GALLERY_JSON_PATH = 'public/published/gallery.json'
 const REVIEWS_JSON_PATH = 'public/published/reviews.json'
