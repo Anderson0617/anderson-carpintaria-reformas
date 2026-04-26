@@ -45,15 +45,14 @@ function createEmptySelection() {
 
 function createSelectionForItem(item, currentSelection) {
   const next = createEmptySelection()
+  next.publishGithub =
+    !item.isPublishedInGithub && currentSelection?.publishGithub === true
+  next.publishSupabase =
+    !item.isPublishedInSupabase && currentSelection?.publishSupabase === true
+  next.deleteGithub = item.isPublic && currentSelection?.deleteGithub === true
+  next.deleteSupabase =
+    item.isPublishedInSupabase && currentSelection?.deleteSupabase === true
 
-  if (item.isPublic) {
-    next.deleteGithub = currentSelection?.deleteGithub === true
-    next.deleteSupabase = item.isPublishedInSupabase ? currentSelection?.deleteSupabase === true : false
-    return next
-  }
-
-  next.publishGithub = currentSelection?.publishGithub === true
-  next.publishSupabase = currentSelection?.publishSupabase === true
   return next
 }
 
@@ -78,36 +77,22 @@ function translateReviewStatus(status) {
 }
 
 function getDestinationStatusLabel(item, selection) {
-  if (item.isPublic) {
-    const markedToDelete = []
+  const markedToDelete = []
 
-    if (selection?.deleteGithub) {
-      markedToDelete.push('GitHub')
-    }
+  if (selection?.deleteGithub) {
+    markedToDelete.push('GitHub')
+  }
 
-    if (selection?.deleteSupabase) {
-      markedToDelete.push('Supabase')
-    }
+  if (selection?.deleteSupabase) {
+    markedToDelete.push('Supabase')
+  }
 
-    if (markedToDelete.length === 2) {
-      return 'Marcado para excluir do GitHub e Supabase'
-    }
+  if (markedToDelete.length === 2) {
+    return 'Marcado para excluir do GitHub e Supabase'
+  }
 
-    if (markedToDelete.length === 1) {
-      return `Marcado para excluir do ${markedToDelete[0]}`
-    }
-
-    if (item.hasGithubRecord && item.isPublishedInSupabase) {
-      return 'Público no GitHub e Supabase'
-    }
-
-    if (item.hasGithubRecord) {
-      return 'Público no GitHub'
-    }
-
-    if (item.isPublishedInSupabase) {
-      return 'Público no Supabase'
-    }
+  if (markedToDelete.length === 1) {
+    return `Marcado para excluir do ${markedToDelete[0]}`
   }
 
   const markedToPublish = []
@@ -128,13 +113,47 @@ function getDestinationStatusLabel(item, selection) {
     return `Marcado para subir no ${markedToPublish[0]}`
   }
 
+  if (item.hasGithubRecord && item.isPublishedInSupabase) {
+    return 'Público no GitHub e Supabase'
+  }
+
+  if (item.hasGithubRecord) {
+    return 'Público no GitHub'
+  }
+
+  if (item.isPublishedInSupabase) {
+    return 'Público no Supabase'
+  }
+
   return 'Fora do público'
 }
 
 function DestinationControls({ item, selection, disabled, onSelectionChange }) {
-  if (item.isPublic) {
-    return (
-      <div className="admin-destination-controls" role="group" aria-label={`Destinos do item ${item.id}`}>
+  return (
+    <div className="admin-destination-controls" role="group" aria-label={`Destinos do item ${item.id}`}>
+      {!item.isPublishedInGithub ? (
+        <label className={`admin-destination-option ${selection.publishGithub ? 'is-active' : ''}`}>
+          <input
+            type="checkbox"
+            checked={selection.publishGithub}
+            disabled={disabled}
+            onChange={(event) => onSelectionChange(item.id, 'publishGithub', event.target.checked)}
+          />
+          <span>Subir GitHub</span>
+        </label>
+      ) : null}
+      {!item.isPublishedInSupabase ? (
+        <label className={`admin-destination-option ${selection.publishSupabase ? 'is-active' : ''}`}>
+          <input
+            type="checkbox"
+            checked={selection.publishSupabase}
+            disabled={disabled}
+            onChange={(event) => onSelectionChange(item.id, 'publishSupabase', event.target.checked)}
+          />
+          <span>Subir Supabase</span>
+        </label>
+      ) : null}
+      {item.isPublic ? (
         <label className={`admin-destination-option ${selection.deleteGithub ? 'is-active is-danger' : ''}`}>
           <input
             type="checkbox"
@@ -144,41 +163,18 @@ function DestinationControls({ item, selection, disabled, onSelectionChange }) {
           />
           <span>Excluir GitHub</span>
         </label>
-        {item.isPublishedInSupabase ? (
-          <label className={`admin-destination-option ${selection.deleteSupabase ? 'is-active is-danger' : ''}`}>
-            <input
-              type="checkbox"
-              checked={selection.deleteSupabase}
-              disabled={disabled}
-              onChange={(event) => onSelectionChange(item.id, 'deleteSupabase', event.target.checked)}
-            />
-            <span>Excluir Supabase</span>
-          </label>
-        ) : null}
-      </div>
-    )
-  }
-
-  return (
-    <div className="admin-destination-controls" role="group" aria-label={`Destinos do item ${item.id}`}>
-      <label className={`admin-destination-option ${selection.publishGithub ? 'is-active' : ''}`}>
-        <input
-          type="checkbox"
-          checked={selection.publishGithub}
-          disabled={disabled}
-          onChange={(event) => onSelectionChange(item.id, 'publishGithub', event.target.checked)}
-        />
-        <span>Subir GitHub</span>
-      </label>
-      <label className={`admin-destination-option ${selection.publishSupabase ? 'is-active' : ''}`}>
-        <input
-          type="checkbox"
-          checked={selection.publishSupabase}
-          disabled={disabled}
-          onChange={(event) => onSelectionChange(item.id, 'publishSupabase', event.target.checked)}
-        />
-        <span>Subir Supabase</span>
-      </label>
+      ) : null}
+      {item.isPublishedInSupabase ? (
+        <label className={`admin-destination-option ${selection.deleteSupabase ? 'is-active is-danger' : ''}`}>
+          <input
+            type="checkbox"
+            checked={selection.deleteSupabase}
+            disabled={disabled}
+            onChange={(event) => onSelectionChange(item.id, 'deleteSupabase', event.target.checked)}
+          />
+          <span>Excluir Supabase</span>
+        </label>
+      ) : null}
     </div>
   )
 }
@@ -328,6 +324,35 @@ function AdminPanel({
   const [gallerySelections, setGallerySelections] = useState({})
   const [reviewSelections, setReviewSelections] = useState({})
 
+  function updateSelection(current, id, key, checked) {
+    const nextSelection = {
+      ...createEmptySelection(),
+      ...current[id],
+      [key]: checked,
+    }
+
+    if (key === 'publishGithub' && checked) {
+      nextSelection.deleteGithub = false
+    }
+
+    if (key === 'deleteGithub' && checked) {
+      nextSelection.publishGithub = false
+    }
+
+    if (key === 'publishSupabase' && checked) {
+      nextSelection.deleteSupabase = false
+    }
+
+    if (key === 'deleteSupabase' && checked) {
+      nextSelection.publishSupabase = false
+    }
+
+    return {
+      ...current,
+      [id]: nextSelection,
+    }
+  }
+
   useEffect(() => {
     const allItems = [...extraPhotos.carpintaria, ...extraPhotos.alvenaria]
 
@@ -390,13 +415,13 @@ function AdminPanel({
   async function handleGithubPublishClick() {
     const allPhotos = [...extraPhotos.carpintaria, ...extraPhotos.alvenaria]
     const galleryIdsToPublish = allPhotos
-      .filter((item) => !item.isPublic && gallerySelections[item.id]?.publishGithub)
+      .filter((item) => !item.isPublishedInGithub && gallerySelections[item.id]?.publishGithub)
       .map((item) => item.id)
     const galleryIdsToDelete = allPhotos
       .filter((item) => item.isPublic && gallerySelections[item.id]?.deleteGithub)
       .map((item) => item.id)
     const reviewIdsToPublish = reviews
-      .filter((review) => !review.isPublic && reviewSelections[review.id]?.publishGithub)
+      .filter((review) => !review.isPublishedInGithub && reviewSelections[review.id]?.publishGithub)
       .map((review) => review.id)
     const reviewIdsToDelete = reviews
       .filter((review) => review.isPublic && reviewSelections[review.id]?.deleteGithub)
@@ -413,13 +438,13 @@ function AdminPanel({
   async function handleSupabaseMediaUploadClick() {
     const allPhotos = [...extraPhotos.carpintaria, ...extraPhotos.alvenaria]
     const galleryIdsToPublish = allPhotos
-      .filter((item) => !item.isPublic && gallerySelections[item.id]?.publishSupabase)
+      .filter((item) => !item.isPublishedInSupabase && gallerySelections[item.id]?.publishSupabase)
       .map((item) => item.id)
     const galleryIdsToDelete = allPhotos
       .filter((item) => item.isPublishedInSupabase && gallerySelections[item.id]?.deleteSupabase)
       .map((item) => item.id)
     const reviewIdsToPublish = reviews
-      .filter((review) => !review.isPublic && reviewSelections[review.id]?.publishSupabase)
+      .filter((review) => !review.isPublishedInSupabase && reviewSelections[review.id]?.publishSupabase)
       .map((review) => review.id)
     const reviewIdsToDelete = reviews
       .filter((review) => review.isPublishedInSupabase && reviewSelections[review.id]?.deleteSupabase)
@@ -498,14 +523,7 @@ function AdminPanel({
           onUpdate={onUpdateExtraPhoto}
           onDeletePending={onDeletePendingExtraPhoto}
           onSelectionChange={(id, key, checked) =>
-            setGallerySelections((current) => ({
-              ...current,
-              [id]: {
-                ...createEmptySelection(),
-                ...current[id],
-                [key]: checked,
-              },
-            }))
+            setGallerySelections((current) => updateSelection(current, id, key, checked))
           }
         />
 
@@ -519,14 +537,7 @@ function AdminPanel({
           onUpdate={onUpdateExtraPhoto}
           onDeletePending={onDeletePendingExtraPhoto}
           onSelectionChange={(id, key, checked) =>
-            setGallerySelections((current) => ({
-              ...current,
-              [id]: {
-                ...createEmptySelection(),
-                ...current[id],
-                [key]: checked,
-              },
-            }))
+            setGallerySelections((current) => updateSelection(current, id, key, checked))
           }
         />
 
@@ -572,14 +583,7 @@ function AdminPanel({
                     selection={reviewSelections[review.id] || createEmptySelection()}
                     disabled={reviewActionPending}
                     onSelectionChange={(id, key, checked) =>
-                      setReviewSelections((current) => ({
-                        ...current,
-                        [id]: {
-                          ...createEmptySelection(),
-                          ...current[id],
-                          [key]: checked,
-                        },
-                      }))
+                      setReviewSelections((current) => updateSelection(current, id, key, checked))
                     }
                   />
                   {!review.isPublic ? (
