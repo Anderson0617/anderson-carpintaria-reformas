@@ -32,7 +32,13 @@ import {
 } from './lib/gallery'
 import { loadState, saveState } from './lib/storage'
 import { isSupabaseConfigured } from './lib/supabase'
-import { listRecentVisits, getSiteVisits, incrementSiteVisits } from './lib/visitors'
+import {
+  countGoogleSiteVisits,
+  getCachedGoogleVisitCount,
+  listRecentVisits,
+  getSiteVisits,
+  incrementSiteVisits,
+} from './lib/visitors'
 import { getApproxLocation, getOrCreateVisitorSessionId } from './lib/location'
 import { isGithubPublishConfigured, publishGithubWorkflow } from './lib/githubPublish'
 import { listGithubHiddenState } from './lib/githubVisibility'
@@ -381,28 +387,53 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!isSupabaseConfigured || typeof window === 'undefined') {
+    if (typeof window === 'undefined') {
       return
     }
 
     let cancelled = false
 
     async function syncVisitCount({ increment = false } = {}) {
+      let nextSupabaseCount = null
+      let nextGoogleCount = getCachedGoogleVisitCount()
+      let location = visitorLocation
+
       try {
-        const location = visitorLocation ?? (await getApproxLocation())
-        if (!cancelled) {
-          setVisitorLocation(location)
+        if (!location) {
+          location = await getApproxLocation()
+          if (!cancelled) {
+            setVisitorLocation(location)
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao carregar localização aproximada', error)
+      }
+
+      try {
+        if (isSupabaseConfigured) {
+          try {
+            nextSupabaseCount = increment
+              ? await incrementSiteVisits({
+                  location,
+                  sessionId: getOrCreateVisitorSessionId(),
+                })
+              : await getSiteVisits()
+          } catch (error) {
+            console.error('Erro ao carregar contador do Supabase', error)
+          }
         }
 
-        const nextCount = increment
-          ? await incrementSiteVisits({
-              location,
-              sessionId: getOrCreateVisitorSessionId(),
-            })
-          : await getSiteVisits()
+        if (increment) {
+          try {
+            nextGoogleCount = await countGoogleSiteVisits()
+          } catch (error) {
+            console.error('Erro ao carregar contador do Google', error)
+          }
+        }
 
-        if (!cancelled) {
-          setVisitCount(nextCount)
+        const availableCounts = [nextSupabaseCount, nextGoogleCount].filter((value) => Number.isFinite(value))
+        if (!cancelled && availableCounts.length) {
+          setVisitCount(Math.max(...availableCounts))
           setVisitCountReady(true)
         }
       } catch (error) {
