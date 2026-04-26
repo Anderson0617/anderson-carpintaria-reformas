@@ -107,7 +107,7 @@ function mergeAdminGallerySources(supabaseEntries, githubEntries, optimisticGith
   const supabaseById = new Map(supabaseEntries.map((entry) => [entry.id, entry]))
   const githubById = new Map(githubEntries.map((entry) => [entry.id, entry]))
   const hiddenIds = new Set(hiddenGithubIds)
-  const ids = new Set([...supabaseById.keys(), ...githubById.keys(), ...optimisticGithubIds, ...hiddenIds])
+  const ids = new Set([...supabaseById.keys(), ...githubById.keys(), ...optimisticGithubIds])
 
   return [...ids].map((id) => {
     const supabaseEntry = supabaseById.get(id)
@@ -146,7 +146,7 @@ function mergeAdminReviewSources(supabaseReviews, githubReviews, optimisticGithu
   const supabaseById = new Map(supabaseReviews.map((review) => [review.id, review]))
   const githubById = new Map(githubReviews.map((review) => [review.id, review]))
   const hiddenIds = new Set(hiddenGithubIds)
-  const ids = new Set([...supabaseById.keys(), ...githubById.keys(), ...optimisticGithubIds, ...hiddenIds])
+  const ids = new Set([...supabaseById.keys(), ...githubById.keys(), ...optimisticGithubIds])
 
   return [...ids].map((id) => {
     const supabaseReview = supabaseById.get(id)
