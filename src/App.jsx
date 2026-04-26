@@ -397,6 +397,7 @@ function App() {
       let nextSupabaseCount = null
       let nextGoogleCount = getCachedGoogleVisitCount()
       let location = visitorLocation
+      const shouldSyncGoogle = increment || !nextGoogleCount
 
       try {
         if (!location) {
@@ -423,7 +424,7 @@ function App() {
           }
         }
 
-        if (increment) {
+        if (shouldSyncGoogle) {
           try {
             nextGoogleCount = await countGoogleSiteVisits()
           } catch (error) {
