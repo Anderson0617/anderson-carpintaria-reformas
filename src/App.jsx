@@ -109,9 +109,12 @@ function mergeAdminGallerySources(supabaseEntries, githubEntries, optimisticGith
   const hiddenIds = new Set(hiddenGithubIds)
   const ids = new Set([...supabaseById.keys(), ...githubById.keys(), ...optimisticGithubIds])
 
-  return [...ids].map((id) => {
+  return [...ids].flatMap((id) => {
     const supabaseEntry = supabaseById.get(id)
     const githubEntry = githubById.get(id)
+    if (!supabaseEntry && !githubEntry) {
+      return []
+    }
     const isPublishedInSupabase = supabaseEntry?.status === 'published'
     const isHiddenInGithub = hiddenIds.has(id)
     const isPublishedInGithub = (githubById.has(id) || optimisticGithubIds.includes(id)) && !isHiddenInGithub
@@ -148,9 +151,12 @@ function mergeAdminReviewSources(supabaseReviews, githubReviews, optimisticGithu
   const hiddenIds = new Set(hiddenGithubIds)
   const ids = new Set([...supabaseById.keys(), ...githubById.keys(), ...optimisticGithubIds])
 
-  return [...ids].map((id) => {
+  return [...ids].flatMap((id) => {
     const supabaseReview = supabaseById.get(id)
     const githubReview = githubById.get(id)
+    if (!supabaseReview && !githubReview) {
+      return []
+    }
     const isPublishedInSupabase = supabaseReview?.status === 'approved'
     const isHiddenInGithub = hiddenIds.has(id)
     const isPublishedInGithub = (githubById.has(id) || optimisticGithubIds.includes(id)) && !isHiddenInGithub
