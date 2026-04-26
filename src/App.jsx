@@ -35,6 +35,7 @@ import { isSupabaseConfigured } from './lib/supabase'
 import {
   countGoogleSiteVisits,
   getCachedGoogleVisitCount,
+  getGoogleSiteVisits,
   listRecentVisits,
   getSiteVisits,
   incrementSiteVisits,
@@ -397,7 +398,6 @@ function App() {
       let nextSupabaseCount = null
       let nextGoogleCount = getCachedGoogleVisitCount()
       let location = visitorLocation
-      const shouldSyncGoogle = increment || !nextGoogleCount
 
       try {
         if (!location) {
@@ -424,11 +424,17 @@ function App() {
           }
         }
 
-        if (shouldSyncGoogle) {
+        try {
+          nextGoogleCount = increment ? await countGoogleSiteVisits() : await getGoogleSiteVisits()
+        } catch (error) {
+          console.error('Erro ao carregar contador do Google', error)
+        }
+
+        if (!Number.isFinite(nextGoogleCount) || nextGoogleCount <= 0) {
           try {
-            nextGoogleCount = await countGoogleSiteVisits()
+            nextGoogleCount = getCachedGoogleVisitCount()
           } catch (error) {
-            console.error('Erro ao carregar contador do Google', error)
+            console.error('Erro ao recuperar cache local do Google', error)
           }
         }
 

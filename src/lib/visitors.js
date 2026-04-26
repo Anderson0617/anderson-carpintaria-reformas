@@ -100,9 +100,8 @@ function requestJsonp(url) {
   })
 }
 
-export async function countGoogleSiteVisits() {
-  const url = `${GOOGLE_VISITS_WEB_APP_URL}?action=count`
-
+async function requestGoogleVisitCount(action) {
+  const url = `${GOOGLE_VISITS_WEB_APP_URL}?action=${encodeURIComponent(action)}&t=${Date.now()}`
   try {
     const response = await fetch(url, {
       method: 'GET',
@@ -118,12 +117,20 @@ export async function countGoogleSiteVisits() {
     const count = normalizeGoogleVisitCount(payload)
     setCachedGoogleVisitCount(count)
     return count
-  } catch (error) {
+  } catch {
     const payload = await requestJsonp(url)
     const count = normalizeGoogleVisitCount(payload)
     setCachedGoogleVisitCount(count)
     return count
   }
+}
+
+export async function countGoogleSiteVisits() {
+  return requestGoogleVisitCount('count')
+}
+
+export async function getGoogleSiteVisits() {
+  return requestGoogleVisitCount('get')
 }
 
 export async function getSiteVisits() {
