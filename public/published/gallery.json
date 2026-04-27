@@ -1,13 +1,4 @@
 {
-  "carpintaria": [
-    {
-      "id": "c7a8b78c-1abb-47a7-9a3e-bbbca707fa12",
-      "category": "carpintaria",
-      "name": "1000277296.png",
-      "description": "Teste 👌 73",
-      "imagePath": "published/gallery/carpintaria/c7a8b78c-1abb-47a7-9a3e-bbbca707fa12-1000277296.png",
-      "publishedAt": "2026-04-27T13:23:55.851Z"
-    }
-  ],
+  "carpintaria": [],
   "alvenaria": []
 }
