@@ -90,7 +90,9 @@ Usado para:
 
 - 📱 WhatsApp: 48 99169-1906
 - 📧 E-mail: anderson090485@gmail.com
-- 🌐 Site: https://anderson0617.github.io/anderson-carpintaria-reformas/
+- 🌐 Site profissional: https://anderson0617.github.io/anderson-carpintaria-reformas/
+- 💼 Portfólio Dev: https://anderson0617.github.io/-meu-portfolio/
+- 🔗 LinkedIn: https://www.linkedin.com/in/anderson-olivera-dev
 
 ## 📍 Região de atendimento
 
