@@ -508,6 +508,14 @@ function App() {
     return `https://wa.me/${withCountryCode}`
   }
 
+  function trackWhatsappConversion() {
+    if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+      window.gtag('event', 'conversion', {
+        send_to: 'AW-18170629485/5-fKCOXy_q8cEO2at9hD',
+      })
+    }
+  }
+
   async function refreshPublicReviews({ silent = false } = {}) {
     try {
       const nextReviews = await listPublicReviews()
@@ -1232,6 +1240,7 @@ function App() {
       label: 'Falar no WhatsApp',
       href: getWhatsappLink(content.hero.whatsapp),
       variant: 'secondary',
+      onClick: trackWhatsappConversion,
     },
   ]
 
@@ -1299,6 +1308,7 @@ function App() {
                       className={`button ${button.variant === 'secondary' ? 'button--ghost' : 'button--primary'}`}
                       target={button.href.startsWith('https://') ? '_blank' : undefined}
                       rel={button.href.startsWith('https://') ? 'noreferrer' : undefined}
+                      onClick={button.onClick}
                     >
                       {button.label}
                     </a>
@@ -1440,7 +1450,12 @@ function App() {
 
             <div className="footer__contacts">
               <span data-nosnippet>
-                <a href={getWhatsappLink(content.hero.whatsapp)} target="_blank" rel="noreferrer">
+                <a
+                  href={getWhatsappLink(content.hero.whatsapp)}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={trackWhatsappConversion}
+                >
                   WhatsApp: {content.hero.whatsapp}
                 </a>
               </span>
