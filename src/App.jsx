@@ -1439,9 +1439,11 @@ function App() {
             </div>
 
             <div className="footer__contacts">
-              <a href={getWhatsappLink(content.hero.whatsapp)} target="_blank" rel="noreferrer">
-                WhatsApp: {content.hero.whatsapp}
-              </a>
+              <span data-nosnippet>
+                <a href={getWhatsappLink(content.hero.whatsapp)} target="_blank" rel="noreferrer">
+                  WhatsApp: {content.hero.whatsapp}
+                </a>
+              </span>
               <a href={`mailto:${content.hero.email}`}>E-mail: {content.hero.email}</a>
               <span>Atendimento: {content.hero.region}</span>
             </div>
