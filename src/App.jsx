@@ -1235,7 +1235,6 @@ function App() {
     ['Contato', '#contato'],
   ]
   const heroActions = [
-    { label: 'Solicitar orçamento', href: '#contato', variant: 'primary' },
     {
       label: 'Falar no WhatsApp',
       href: getWhatsappLink(content.hero.whatsapp),

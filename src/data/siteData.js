@@ -45,7 +45,6 @@ import alvenaria5 from '../../assets/alvenaria-5.jpeg'
 export const SITE_PASSWORD = '2805'
 
 export const heroButtons = [
-  { label: 'Solicitar orçamento', href: '#contato', variant: 'primary' },
   { label: 'Falar no WhatsApp', href: 'https://wa.me/554891691906', variant: 'secondary' },
 ]
 
