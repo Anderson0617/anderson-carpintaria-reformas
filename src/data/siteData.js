@@ -46,7 +46,7 @@ export const SITE_PASSWORD = '2805'
 
 export const heroButtons = [
   { label: 'Solicitar orçamento', href: '#contato', variant: 'primary' },
-  { label: 'Falar no WhatsApp', href: 'https://wa.me/5548991691906', variant: 'secondary' },
+  { label: 'Falar no WhatsApp', href: 'https://wa.me/554891691906', variant: 'secondary' },
 ]
 
 export const serviceItems = [
@@ -150,7 +150,7 @@ export const defaultPublishedContent = {
     title: 'Anderson Carpintaria e Reformas',
     headline: 'Carpintaria e Reformas com Estrutura, Acabamento e Compromisso Profissional',
     support: '',
-    whatsapp: '48 991691906',
+    whatsapp: '48 91691906',
     email: 'anderson090485@gmail.com',
     region: 'Florianópolis e regiões',
   },
