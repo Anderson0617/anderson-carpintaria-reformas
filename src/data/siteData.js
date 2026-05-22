@@ -150,7 +150,7 @@ export const defaultPublishedContent = {
     title: 'Anderson Carpintaria e Reformas',
     headline: 'Carpintaria e Reformas com Estrutura, Acabamento e Compromisso Profissional',
     support: '',
-    whatsapp: '48 91691906',
+    whatsapp: '4891691906',
     email: 'anderson090485@gmail.com',
     region: 'Florianópolis e regiões',
   },
