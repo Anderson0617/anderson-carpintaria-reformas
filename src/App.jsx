@@ -504,8 +504,15 @@ function App() {
 
   function getWhatsappLink(phone) {
     const digits = phone.replace(/\D/g, '')
-    const withCountryCode = digits.startsWith('55') ? digits : `55${digits}`
-    return `https://wa.me/${withCountryCode}`
+    const localDigits = digits.startsWith('55') ? digits.slice(2) : digits
+
+    // Mantem o link do WhatsApp no formato que funciona para este número em DDD 48.
+    const normalizedLocalDigits =
+      localDigits.startsWith('48') && localDigits.length === 11 && localDigits[2] === '9'
+        ? `48${localDigits.slice(3)}`
+        : localDigits
+
+    return `https://wa.me/55${normalizedLocalDigits}`
   }
 
   function trackWhatsappConversion() {
