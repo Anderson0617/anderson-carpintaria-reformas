@@ -9,6 +9,32 @@ const LEGACY_ASSET_MARKERS = {
   masonryBottom: ['fundo-4-fim-rodape.jpeg', 'fundo-4 fim-rodape.jpeg'],
 }
 
+function shouldRefreshBundledIntroVideo(value) {
+  if (typeof value !== 'string' || value.startsWith('data:')) {
+    return false
+  }
+
+  if (!/\.mp4($|\?)/i.test(value)) {
+    return false
+  }
+
+  if (
+    value.includes('/assets/') ||
+    value.includes('assets/video/') ||
+    value.includes('/src/assets/') ||
+    value.includes('/video/')
+  ) {
+    return true
+  }
+
+  try {
+    const url = new URL(value)
+    return ['localhost', '127.0.0.1', 'anderson0617.github.io'].includes(url.hostname)
+  } catch {
+    return false
+  }
+}
+
 function sanitizeReviewIntro(content) {
   if (!content?.reviewsIntro?.text) {
     return content
@@ -48,7 +74,10 @@ function sanitizeMediaContent(content, fallback) {
     nextContent.media.presentationPhoto = fallback.media.presentationPhoto
   }
 
-  if (shouldReplaceLegacyAsset(nextContent.introVideo?.media, LEGACY_ASSET_MARKERS.introVideo)) {
+  if (
+    shouldReplaceLegacyAsset(nextContent.introVideo?.media, LEGACY_ASSET_MARKERS.introVideo) ||
+    shouldRefreshBundledIntroVideo(nextContent.introVideo?.media)
+  ) {
     nextContent.introVideo.media = fallback.introVideo.media
   }
 

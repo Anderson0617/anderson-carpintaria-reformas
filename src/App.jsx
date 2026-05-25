@@ -1335,13 +1335,16 @@ function App() {
                 </div>
                 <div className="video-card panel">
                   <video
-                    src={content.introVideo.media}
+                    key={content.introVideo.media}
                     autoPlay
                     muted
                     loop
                     playsInline
+                    preload="auto"
                     controls={false}
-                  />
+                  >
+                    <source src={content.introVideo.media} type="video/mp4" />
+                  </video>
                   <div className="video-card__copy">
                     <h3>{content.introVideo.quote}</h3>
                     <p>{content.introVideo.description}</p>
