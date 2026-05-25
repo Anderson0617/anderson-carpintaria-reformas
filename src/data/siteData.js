@@ -1,5 +1,5 @@
 import apresentacao from '../../assets/eu-apresentacao.jpeg'
-import videoPortas from '../../assets/video/VIDEO-PORTAS.mp4'
+import videoPortas from '../../assets/video/0525.mp4'
 
 import capaTopoCarpintaria from '../../assets/CAPA-TOPO-73.jpeg'
 import capaRodapeCarpintaria from '../../assets/CAPA-RODAPE.jpeg'
