@@ -56,6 +56,7 @@ const initialState = {
 }
 
 const VISIT_SESSION_KEY = 'anderson-carpintaria-visit-registered'
+const WHATSAPP_CATALOG_LINK = 'https://wa.me/p/26884786921202038/37169267765465'
 
 function applyEditableMediaOverrides(content, overrides) {
   let nextContent = structuredClone(content)
@@ -500,19 +501,6 @@ function App() {
     }
 
     return fallbackMessage
-  }
-
-  function getWhatsappLink(phone) {
-    const digits = phone.replace(/\D/g, '')
-    const localDigits = digits.startsWith('55') ? digits.slice(2) : digits
-
-    // Mantem o link do WhatsApp no formato que funciona para este número em DDD 48.
-    const normalizedLocalDigits =
-      localDigits.startsWith('48') && localDigits.length === 11 && localDigits[2] === '9'
-        ? `48${localDigits.slice(3)}`
-        : localDigits
-
-    return `https://wa.me/55${normalizedLocalDigits}`
   }
 
   function trackWhatsappConversion() {
@@ -1244,7 +1232,7 @@ function App() {
   const heroActions = [
     {
       label: 'Falar no WhatsApp',
-      href: getWhatsappLink(content.hero.whatsapp),
+      href: WHATSAPP_CATALOG_LINK,
       variant: 'secondary',
       onClick: trackWhatsappConversion,
     },
@@ -1460,7 +1448,7 @@ function App() {
             <div className="footer__contacts">
               <span data-nosnippet>
                 <a
-                  href={getWhatsappLink(content.hero.whatsapp)}
+                  href={WHATSAPP_CATALOG_LINK}
                   target="_blank"
                   rel="noreferrer"
                   onClick={trackWhatsappConversion}
