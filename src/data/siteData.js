@@ -45,7 +45,7 @@ import alvenaria5 from '../../assets/alvenaria-5.jpeg'
 export const SITE_PASSWORD = '2805'
 
 export const heroButtons = [
-  { label: 'Falar no WhatsApp', href: 'https://wa.me/p/26884786921202038/37169267765465', variant: 'secondary' },
+  { label: 'Falar no WhatsApp', href: 'https://wa.me/c/37169267765465', variant: 'secondary' },
 ]
 
 export const serviceItems = [
