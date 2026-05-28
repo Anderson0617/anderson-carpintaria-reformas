@@ -45,7 +45,7 @@ import alvenaria5 from '../../assets/alvenaria-5.jpeg'
 export const SITE_PASSWORD = '2805'
 
 export const heroButtons = [
-  { label: 'Falar no WhatsApp', href: 'https://wa.me/554891691906', variant: 'secondary' },
+  { label: 'Falar no WhatsApp', href: 'https://wa.me/5548991691906?text=Anderson,%20Carpintaria%20e%20Reformas%20agradece%20o%20contato.', variant: 'secondary' },
 ]
 
 export const serviceItems = [
@@ -149,7 +149,7 @@ export const defaultPublishedContent = {
     title: 'Anderson Carpintaria e Reformas',
     headline: 'Carpintaria e Reformas com Estrutura, Acabamento e Compromisso Profissional',
     support: '',
-    whatsapp: '4891691906',
+    whatsapp: '48991691906',
     email: 'anderson090485@gmail.com',
     region: 'Florianópolis e regiões',
   },

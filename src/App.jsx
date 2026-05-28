@@ -56,7 +56,7 @@ const initialState = {
 }
 
 const VISIT_SESSION_KEY = 'anderson-carpintaria-visit-registered'
-const WHATSAPP_CATALOG_LINK = 'https://wa.me/554891691906'
+const WHATSAPP_CATALOG_LINK = 'https://wa.me/5548991691906?text=Anderson,%20Carpintaria%20e%20Reformas%20agradece%20o%20contato.'
 
 function applyEditableMediaOverrides(content, overrides) {
   let nextContent = structuredClone(content)
