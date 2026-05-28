@@ -45,7 +45,7 @@ import alvenaria5 from '../../assets/alvenaria-5.jpeg'
 export const SITE_PASSWORD = '2805'
 
 export const heroButtons = [
-  { label: 'Falar no WhatsApp', href: 'https://wa.me/5548991691906?text=Anderson,%20Carpintaria%20e%20Reformas%20agradece%20o%20contato.', variant: 'secondary' },
+  { label: 'Falar no WhatsApp', href: 'https://wa.me/5548991691906?text=Olá%20Gostaria%20de%20Mais%20Informações%20Desde%20Já%20agradeço.', variant: 'secondary' },
 ]
 
 export const serviceItems = [
