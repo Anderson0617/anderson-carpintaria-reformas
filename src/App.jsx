@@ -37,7 +37,6 @@ import {
   getCachedGoogleVisitCount,
   getGoogleSiteVisits,
   listRecentVisits,
-  getSiteVisits,
   incrementSiteVisits,
 } from './lib/visitors'
 import { getApproxLocation, getOrCreateVisitorSessionId } from './lib/location'
@@ -101,6 +100,33 @@ function collectPendingEditableMedia(content) {
     Object.entries(EDITABLE_MEDIA_PATHS)
       .map(([key, path]) => [key, path.split('.').reduce((accumulator, segment) => accumulator?.[segment], content)])
       .filter(([, value]) => isDataUrl(value)),
+  )
+}
+
+function FallbackImage({ src, fallbackSrc, alt, onError, ...props }) {
+  const [hasFailed, setHasFailed] = useState(false)
+
+  useEffect(() => {
+    setHasFailed(false)
+  }, [src])
+
+  const canUseFallback = Boolean(fallbackSrc)
+  const imageSrc = (!src || hasFailed) && canUseFallback ? fallbackSrc : src
+  const isUsingFallback = imageSrc === fallbackSrc
+
+  return (
+    <img
+      {...props}
+      src={imageSrc}
+      alt={alt}
+      onError={(event) => {
+        onError?.(event)
+
+        if (!isUsingFallback && canUseFallback) {
+          setHasFailed(true)
+        }
+      }}
+    />
   )
 }
 
@@ -191,11 +217,17 @@ function mergeAdminReviewSources(supabaseReviews, githubReviews, optimisticGithu
   })
 }
 
-function SectionDivider({ image, position = 'center' }) {
+function SectionDivider({ image, fallbackImage, position = 'center' }) {
   return (
     <div className="section-divider">
       <div className="section-divider__glow" />
-      <img src={image} alt="" loading="lazy" style={{ objectPosition: position }} />
+      <FallbackImage
+        src={image}
+        fallbackSrc={fallbackImage}
+        alt=""
+        loading="lazy"
+        style={{ objectPosition: position }}
+      />
     </div>
   )
 }
@@ -402,7 +434,6 @@ function App() {
     let cancelled = false
 
     async function syncVisitCount({ increment = false } = {}) {
-      let nextSupabaseCount = null
       let nextGoogleCount = getCachedGoogleVisitCount()
       let location = visitorLocation
 
@@ -418,14 +449,12 @@ function App() {
       }
 
       try {
-        if (isSupabaseConfigured) {
+        if (isSupabaseConfigured && increment) {
           try {
-            nextSupabaseCount = increment
-              ? await incrementSiteVisits({
-                  location,
-                  sessionId: getOrCreateVisitorSessionId(),
-                })
-              : await getSiteVisits()
+            await incrementSiteVisits({
+              location,
+              sessionId: getOrCreateVisitorSessionId(),
+            })
           } catch (error) {
             console.error('Erro ao carregar contador do Supabase', error)
           }
@@ -445,9 +474,8 @@ function App() {
           }
         }
 
-        const availableCounts = [nextSupabaseCount, nextGoogleCount].filter((value) => Number.isFinite(value))
-        if (!cancelled && availableCounts.length) {
-          setVisitCount(Math.max(...availableCounts))
+        if (!cancelled && Number.isFinite(nextGoogleCount)) {
+          setVisitCount(nextGoogleCount)
           setVisitCountReady(true)
         }
       } catch (error) {
@@ -692,29 +720,6 @@ function App() {
     }
 
     setPasswordError('Senha incorreta.')
-  }
-
-  function handleTextChange(path, value) {
-    setSiteState((current) => ({
-      ...current,
-      draftContent: updateByPath(current.draftContent, path, value),
-    }))
-  }
-
-  function handleMediaReplace(key, value) {
-    setSiteState((current) => {
-      if (key === 'introVideo') {
-        return {
-          ...current,
-          draftContent: updateByPath(current.draftContent, 'introVideo.media', value),
-        }
-      }
-
-      return {
-        ...current,
-        draftContent: updateByPath(current.draftContent, `media.${key}`, value),
-      }
-    })
   }
 
   async function publishSelectedGalleryEntries(entryIds) {
@@ -1183,6 +1188,7 @@ function App() {
   }
 
   const content = siteState.publishedContent
+  const mediaFallbacks = defaultPublishedContent.media
   const visibleGithubPublicReviews = githubPublicReviews.filter(
     (review) => !githubHiddenReviewIds.includes(review.id),
   )
@@ -1319,7 +1325,11 @@ function App() {
 
               <div className="hero__visual">
                 <div className="portrait-ring">
-                  <img src={content.media.presentationPhoto} alt="Anderson em apresentação profissional" />
+                  <FallbackImage
+                    src={content.media.presentationPhoto}
+                    fallbackSrc={mediaFallbacks.presentationPhoto}
+                    alt="Anderson em apresentação profissional"
+                  />
                 </div>
                 <div className="video-card panel">
                   <video
@@ -1379,7 +1389,11 @@ function App() {
                 text={`São ${fixedGallerySections.carpintaria.carousels.length + fixedGallerySections.alvenaria.carousels.length} carrosséis fixos com ordem preservada, mais áreas independentes para novas fotos.`}
               />
 
-              <SectionDivider image={content.media.carpentryTop} position="center 38%" />
+              <SectionDivider
+                image={content.media.carpentryTop}
+                fallbackImage={mediaFallbacks.carpentryTop}
+                position="center 38%"
+              />
 
               <section className="gallery-section">
                 <SectionHeading
@@ -1400,11 +1414,19 @@ function App() {
                 </div>
               </section>
 
-              <SectionDivider image={content.media.carpentryBottom} position="center 52%" />
+              <SectionDivider
+                image={content.media.carpentryBottom}
+                fallbackImage={mediaFallbacks.carpentryBottom}
+                position="center 52%"
+              />
 
               <ExtraGallery title="Novas fotos de carpintaria" photos={publicExtraPhotos.carpintaria} />
 
-              <SectionDivider image={content.media.masonryTop} position="center 48%" />
+              <SectionDivider
+                image={content.media.masonryTop}
+                fallbackImage={mediaFallbacks.masonryTop}
+                position="center 48%"
+              />
 
               <section className="gallery-section">
                 <SectionHeading
@@ -1425,7 +1447,11 @@ function App() {
                 </div>
               </section>
 
-              <SectionDivider image={content.media.masonryBottom} position="center 40%" />
+              <SectionDivider
+                image={content.media.masonryBottom}
+                fallbackImage={mediaFallbacks.masonryBottom}
+                position="center 40%"
+              />
 
               <ExtraGallery title="Novas fotos de alvenaria e pedreiro" photos={publicExtraPhotos.alvenaria} />
             </div>
@@ -1461,9 +1487,7 @@ function App() {
             </div>
 
             <p className="footer__closing">{content.footer.closing}</p>
-            {isSupabaseConfigured ? (
-              <p className="footer__count">Visitas: {visitCountReady ? visitCount.toLocaleString('pt-BR') : '...'}</p>
-            ) : null}
+            <p className="footer__count">Visitas: {visitCountReady ? visitCount.toLocaleString('pt-BR') : '...'}</p>
           </div>
 
           <button
@@ -1510,7 +1534,6 @@ function App() {
 
       {adminOpen ? (
         <AdminPanel
-          draftContent={siteState.draftContent}
           visitCount={visitCount}
           recentVisits={recentVisits}
           recentVisitsLoading={recentVisitsLoading}
@@ -1524,8 +1547,6 @@ function App() {
             setAdminOpen(false)
             setAdminCredential('')
           }}
-          onTextChange={handleTextChange}
-          onMediaReplace={handleMediaReplace}
           onAddExtraPhotos={handleAddExtraPhotos}
           onUpdateExtraPhoto={handleUpdateExtraPhoto}
           onDeletePendingExtraPhoto={handleDeletePendingExtraPhoto}

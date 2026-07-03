@@ -1,21 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fileToDataUrl } from '../lib/storage'
 import { formatApproxRegion } from '../lib/location'
-
-const TEXT_FIELDS = [
-  ['Título principal', 'hero.title'],
-  ['Frase principal', 'hero.headline'],
-  ['Texto de apoio', 'hero.support'],
-  ['WhatsApp', 'hero.whatsapp'],
-  ['E-mail', 'hero.email'],
-  ['Região', 'hero.region'],
-  ['Texto da seção Sobre', 'about.text'],
-  ['Título da seção Avaliações', 'reviewsIntro.title'],
-  ['Frase do vídeo', 'introVideo.quote'],
-  ['Texto complementar do vídeo', 'introVideo.description'],
-  ['Texto de avaliações', 'reviewsIntro.text'],
-  ['Frase final do rodapé', 'footer.closing'],
-]
 
 function updateByPath(source, path, value) {
   const keys = path.split('.')
@@ -28,10 +12,6 @@ function updateByPath(source, path, value) {
 
   cursor[keys.at(-1)] = value
   return next
-}
-
-function getByPath(source, path) {
-  return path.split('.').reduce((accumulator, key) => accumulator[key], source)
 }
 
 function createEmptySelection() {
@@ -294,7 +274,6 @@ function ExtraPhotoManager({
 }
 
 function AdminPanel({
-  draftContent,
   visitCount,
   recentVisits,
   recentVisitsLoading,
@@ -305,8 +284,6 @@ function AdminPanel({
   extraPhotosLoading,
   extraPhotoActionPending,
   onClose,
-  onTextChange,
-  onMediaReplace,
   onAddExtraPhotos,
   onUpdateExtraPhoto,
   onDeletePendingExtraPhoto,
@@ -401,17 +378,6 @@ function AdminPanel({
     return ordered.filter((review) => String(review.stars) === filter)
   }, [filter, reviews])
 
-  async function handleMediaChange(event, key) {
-    const file = event.target.files?.[0]
-    if (!file) {
-      return
-    }
-
-    const dataUrl = await fileToDataUrl(file)
-    onMediaReplace(key, dataUrl)
-    event.target.value = ''
-  }
-
   async function handleGithubPublishClick() {
     const allPhotos = [...extraPhotos.carpintaria, ...extraPhotos.alvenaria]
     const galleryIdsToPublish = allPhotos
@@ -473,45 +439,6 @@ function AdminPanel({
         </header>
 
         <VisitorsPanel visitCount={visitCount} visits={recentVisits} loading={recentVisitsLoading} />
-
-        <section className="panel admin-block">
-          <span className="panel__label">Textos principais</span>
-          <div className="admin-form-grid">
-            {TEXT_FIELDS.map(([label, path]) => (
-              <label className="admin-field" key={path}>
-                <span>{label}</span>
-                <textarea
-                  rows={path === 'about.text' ? 6 : 3}
-                  value={getByPath(draftContent, path)}
-                  onChange={(event) => onTextChange(path, event.target.value)}
-                />
-              </label>
-            ))}
-          </div>
-        </section>
-
-        <section className="panel admin-block">
-          <span className="panel__label">Mídias editáveis</span>
-          <div className="admin-media-grid">
-            {[
-              ['Foto de apresentação', 'presentationPhoto'],
-              ['Fundo topo carpintaria', 'carpentryTop'],
-              ['Fundo rodapé carpintaria', 'carpentryBottom'],
-              ['Fundo topo alvenaria', 'masonryTop'],
-              ['Fundo rodapé alvenaria', 'masonryBottom'],
-              ['Vídeo principal', 'introVideo'],
-            ].map(([label, key]) => (
-              <label className="admin-field" key={key}>
-                <span>{label}</span>
-                <input
-                  type="file"
-                  accept={key === 'introVideo' ? 'video/*' : 'image/*'}
-                  onChange={(event) => handleMediaChange(event, key)}
-                />
-              </label>
-            ))}
-          </div>
-        </section>
 
         <ExtraPhotoManager
           title="Carpintaria"
