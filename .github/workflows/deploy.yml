@@ -27,6 +27,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Load Supabase URL file
+        shell: bash
+        run: |
+          url_file="supabase url/COLE SUA URL AQUI.txt"
+          supabase_url="$(tr -d '[:space:]' < "$url_file")"
+
+          if [[ "$supabase_url" == "COLE_SUA_URL_AQUI" ]]; then
+            echo "Arquivo da URL ainda não foi preenchido; usando o segredo do GitHub."
+          elif [[ "$supabase_url" =~ ^https://[A-Za-z0-9.-]+\.supabase\.co/?$ ]]; then
+            echo "VITE_SUPABASE_URL=$supabase_url" >> "$GITHUB_ENV"
+            echo "URL do Supabase carregada pelo arquivo."
+          else
+            echo "URL inválida em: $url_file"
+            exit 1
+          fi
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:

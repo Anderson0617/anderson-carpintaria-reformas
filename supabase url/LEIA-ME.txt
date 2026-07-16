@@ -1,0 +1,19 @@
+COMO TROCAR A URL DO SUPABASE
+
+1. Abra o arquivo "COLE SUA URL AQUI.txt".
+2. Apague a URL antiga inteira que já está no arquivo.
+3. Cole somente a nova URL do projeto Supabase em uma linha.
+
+Exemplo:
+https://seu-projeto.supabase.co
+
+4. Salve o arquivo.
+5. Abra o terminal na raiz do projeto.
+6. Copie e cole de uma vez todo o bloco do arquivo "ATUALIZAR O GITHUB.txt".
+
+O push para a branch main inicia automaticamente a atualização do site no GitHub Pages.
+
+IMPORTANTE:
+- Cole somente a URL pública do projeto.
+- Não cole senha, chave publishable, chave anon ou service_role nesta pasta.
+- Nenhuma função do site precisa ser alterada.
