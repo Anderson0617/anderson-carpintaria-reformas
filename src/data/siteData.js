@@ -1,4 +1,3 @@
-import apresentacao from '../../assets/eu-apresentacao.jpeg'
 import videoPortas from '../../assets/video/0525-otimizado.mp4'
 
 import capaTopoCarpintaria from '../../assets/CAPA-TOPO-73.jpeg'
@@ -41,6 +40,8 @@ import alvenaria2 from '../../assets/alvenaria-2.jpeg'
 import alvenaria3 from '../../assets/alvenaria-3.jpeg'
 import alvenaria4 from '../../assets/alvenaria-4.jpeg'
 import alvenaria5 from '../../assets/alvenaria-5.jpeg'
+
+const apresentacao = `${import.meta.env.BASE_URL}anderson-apresentacao.jpeg`
 
 export const SITE_PASSWORD = '2805'
 

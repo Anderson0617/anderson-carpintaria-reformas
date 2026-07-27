@@ -273,8 +273,23 @@ function ExtraGallery({ title, photos }) {
   )
 }
 
+function loadInitialSiteState() {
+  const storedState = loadState(initialState)
+
+  return {
+    ...storedState,
+    publishedContent: {
+      ...storedState.publishedContent,
+      media: {
+        ...storedState.publishedContent.media,
+        presentationPhoto: defaultPublishedContent.media.presentationPhoto,
+      },
+    },
+  }
+}
+
 function App() {
-  const [siteState, setSiteState] = useState(() => loadState(initialState))
+  const [siteState, setSiteState] = useState(() => loadInitialSiteState())
   const [reviews, setReviews] = useState(() =>
     isSupabaseConfigured || !import.meta.env.DEV ? [] : defaultReviews,
   )
@@ -420,10 +435,85 @@ function App() {
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
-      return
+      return undefined
     }
 
-    refreshPublicEditableMedia({ silent: true })
+    let cancelled = false
+    let loadHandler = null
+    let idleCallbackId = null
+    let timeoutId = null
+
+    function applyPresentationPhoto(url) {
+      if (cancelled || !url) {
+        return
+      }
+
+      setSiteState((current) => mergeEditableMediaIntoState(current, { presentationPhoto: url }))
+    }
+
+    function schedulePresentationPhoto(url) {
+      if (!url) {
+        return
+      }
+
+      function applyWhenIdle() {
+        if (cancelled) {
+          return
+        }
+
+        if (typeof window.requestIdleCallback === 'function') {
+          idleCallbackId = window.requestIdleCallback(() => applyPresentationPhoto(url))
+        } else {
+          timeoutId = window.setTimeout(() => applyPresentationPhoto(url), 0)
+        }
+      }
+
+      if (document.readyState === 'complete') {
+        applyWhenIdle()
+        return
+      }
+
+      loadHandler = applyWhenIdle
+      window.addEventListener('load', loadHandler, { once: true })
+    }
+
+    async function loadInitialEditableMedia() {
+      try {
+        const overrides = await listPublicEditableMedia()
+
+        if (cancelled) {
+          return
+        }
+
+        const { presentationPhoto, ...immediateOverrides } = overrides
+
+        if (Object.keys(immediateOverrides).length) {
+          setSiteState((current) => mergeEditableMediaIntoState(current, immediateOverrides))
+        }
+
+        schedulePresentationPhoto(presentationPhoto)
+      } catch (error) {
+        console.error('Erro ao carregar mídias globais editadas', error)
+      }
+    }
+
+    loadInitialEditableMedia()
+
+    return () => {
+      cancelled = true
+
+      if (loadHandler) {
+        window.removeEventListener('load', loadHandler)
+      }
+
+      if (idleCallbackId !== null && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(idleCallbackId)
+      }
+
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId)
+      }
+    }
   }, [])
 
   useEffect(() => {
@@ -1329,6 +1419,9 @@ function App() {
                     src={content.media.presentationPhoto}
                     fallbackSrc={mediaFallbacks.presentationPhoto}
                     alt="Anderson em apresentação profissional"
+                    fetchPriority="high"
+                    width={1932}
+                    height={2576}
                   />
                 </div>
                 <div className="video-card panel">
