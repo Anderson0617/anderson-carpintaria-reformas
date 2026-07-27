@@ -442,39 +442,86 @@ function App() {
     let loadHandler = null
     let idleCallbackId = null
     let timeoutId = null
+    let fallbackTimerId = null
+    let remotePresentationPhoto = ''
+    let releaseTriggered = false
+    let applyScheduled = false
+    let presentationApplied = false
+    const interactionEvents = ['pointerdown', 'touchstart', 'keydown']
 
-    function applyPresentationPhoto(url) {
-      if (cancelled || !url) {
-        return
-      }
-
-      setSiteState((current) => mergeEditableMediaIntoState(current, { presentationPhoto: url }))
+    function removeInteractionListeners() {
+      interactionEvents.forEach((eventName) => {
+        window.removeEventListener(eventName, handleFirstInteraction, true)
+      })
     }
 
-    function schedulePresentationPhoto(url) {
-      if (!url) {
+    function applyPresentationPhoto() {
+      if (cancelled || presentationApplied || !remotePresentationPhoto) {
         return
       }
 
-      function applyWhenIdle() {
-        if (cancelled) {
-          return
-        }
+      presentationApplied = true
+      setSiteState((current) =>
+        mergeEditableMediaIntoState(current, { presentationPhoto: remotePresentationPhoto }),
+      )
+    }
 
-        if (typeof window.requestIdleCallback === 'function') {
-          idleCallbackId = window.requestIdleCallback(() => applyPresentationPhoto(url))
-        } else {
-          timeoutId = window.setTimeout(() => applyPresentationPhoto(url), 0)
-        }
-      }
-
-      if (document.readyState === 'complete') {
-        applyWhenIdle()
+    function schedulePresentationPhoto() {
+      if (
+        cancelled ||
+        !releaseTriggered ||
+        applyScheduled ||
+        presentationApplied ||
+        !remotePresentationPhoto
+      ) {
         return
       }
 
-      loadHandler = applyWhenIdle
-      window.addEventListener('load', loadHandler, { once: true })
+      applyScheduled = true
+
+      if (typeof window.requestIdleCallback === 'function') {
+        idleCallbackId = window.requestIdleCallback(applyPresentationPhoto, { timeout: 2000 })
+      } else {
+        timeoutId = window.setTimeout(applyPresentationPhoto, 50)
+      }
+    }
+
+    function releasePresentationPhoto() {
+      if (cancelled || releaseTriggered) {
+        return
+      }
+
+      releaseTriggered = true
+      removeInteractionListeners()
+
+      if (loadHandler) {
+        window.removeEventListener('load', loadHandler)
+        loadHandler = null
+      }
+
+      if (fallbackTimerId !== null) {
+        window.clearTimeout(fallbackTimerId)
+        fallbackTimerId = null
+      }
+
+      schedulePresentationPhoto()
+    }
+
+    function handleFirstInteraction(event) {
+      if (event.isTrusted) {
+        releasePresentationPhoto()
+      }
+    }
+
+    function startFallbackTimer() {
+      if (cancelled || releaseTriggered || fallbackTimerId !== null) {
+        return
+      }
+
+      fallbackTimerId = window.setTimeout(() => {
+        fallbackTimerId = null
+        releasePresentationPhoto()
+      }, 30000)
     }
 
     async function loadInitialEditableMedia() {
@@ -491,16 +538,35 @@ function App() {
           setSiteState((current) => mergeEditableMediaIntoState(current, immediateOverrides))
         }
 
-        schedulePresentationPhoto(presentationPhoto)
+        remotePresentationPhoto = presentationPhoto || ''
+        schedulePresentationPhoto()
       } catch (error) {
         console.error('Erro ao carregar mídias globais editadas', error)
       }
+    }
+
+    interactionEvents.forEach((eventName) => {
+      window.addEventListener(eventName, handleFirstInteraction, {
+        capture: true,
+        passive: true,
+      })
+    })
+
+    if (document.readyState === 'complete') {
+      startFallbackTimer()
+    } else {
+      loadHandler = () => {
+        loadHandler = null
+        startFallbackTimer()
+      }
+      window.addEventListener('load', loadHandler, { once: true })
     }
 
     loadInitialEditableMedia()
 
     return () => {
       cancelled = true
+      removeInteractionListeners()
 
       if (loadHandler) {
         window.removeEventListener('load', loadHandler)
@@ -512,6 +578,10 @@ function App() {
 
       if (timeoutId !== null) {
         window.clearTimeout(timeoutId)
+      }
+
+      if (fallbackTimerId !== null) {
+        window.clearTimeout(fallbackTimerId)
       }
     }
   }, [])
