@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-function Carousel({ title, description, images, altPrefix }) {
+function Carousel({ title, description, images }) {
   const [activeIndex, setActiveIndex] = useState(0)
 
   useEffect(() => {
@@ -22,8 +22,8 @@ function Carousel({ title, description, images, altPrefix }) {
   return (
     <article className="gallery-carousel">
       <header className="section-copy section-copy--tight">
-        <p className="section-copy__label">{title}</p>
-        <h3>{description}</h3>
+        <h3 className="carousel__title">{title}</h3>
+        <p className="carousel__description">{description}</p>
       </header>
 
       <div className="carousel-frame" aria-label={title}>
@@ -32,7 +32,7 @@ function Carousel({ title, description, images, altPrefix }) {
             key={`${title}-${index}`}
             className={`carousel-slide ${index === activeIndex ? 'is-active' : ''}`}
           >
-            <img src={image} alt={`${altPrefix} ${index + 1}`} loading="lazy" />
+                <img src={image.src} alt={image.alt} loading="lazy" />
           </figure>
         ))}
       </div>

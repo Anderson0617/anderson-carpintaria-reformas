@@ -263,8 +263,8 @@ function ExtraGallery({ title, photos }) {
         ) : (
           <article className="masonry-card masonry-card--placeholder">
             <div className="masonry-card__body">
-              <strong>Espaço pronto para novas imagens</strong>
-              <p>Quando novas fotos forem adicionadas no painel ADM, a grade cresce automaticamente sem deixar vazios feios.</p>
+              <strong>Novos trabalhos serão publicados aqui</strong>
+              <p>Esta área será atualizada com novas fotos de obras e serviços concluídos.</p>
             </div>
           </article>
         )}
@@ -1356,15 +1356,16 @@ function App() {
             <div className="container">
               <SectionHeading
                 eyebrow=""
-                title="Atendimento dividido entre carpintaria, madeira, reformas e execução em alvenaria."
-                text="A proposta do site é objetiva: apresentar com clareza as frentes de serviço, mostrar obra real e manter um visual profissional, limpo e forte."
+                title="Serviços de carpintaria, estruturas de madeira, telhados e reformas"
+                text="Atendimento em São José e Grande Florianópolis para obras em madeira, decks, pergolados, coberturas, alvenaria, revestimentos e outras etapas de reforma."
               />
 
               <div className="service-grid" ref={serviceGridRef}>
                 {serviceItems.map((item) => (
-                  <article className="service-card panel" key={item}>
+                  <article className="service-card panel" key={item.title}>
                     <span className="service-card__dot" />
-                    <h3>{item}</h3>
+                    <h3>{item.title}</h3>
+                    <p className="service-card__description">{item.description}</p>
                   </article>
                 ))}
               </div>
@@ -1385,8 +1386,8 @@ function App() {
             <div className="container gallery-stack">
               <SectionHeading
                 eyebrow="Galeria"
-                title="Vitrine principal organizada por frente de serviço e por etapa de execução."
-                text={`São ${fixedGallerySections.carpintaria.carousels.length + fixedGallerySections.alvenaria.carousels.length} carrosséis fixos com ordem preservada, mais áreas independentes para novas fotos.`}
+                title="Trabalhos realizados em carpintaria, estruturas de madeira, alvenaria e reformas"
+                text="Veja exemplos reais de telhados, decks, madeiramento, revestimentos, lajes, piscinas, caixaria, radier e acabamentos executados em diferentes etapas de obra."
               />
 
               <SectionDivider

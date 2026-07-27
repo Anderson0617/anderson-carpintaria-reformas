@@ -1,6 +1,6 @@
 # 🪚 Anderson Carpintaria e Reformas
 
-![Anderson Carpintaria e Reformas](./73-ChatGPT-favicom-removebg-preview.png)
+![Anderson Carpintaria e Reformas](public/anderson-carpintaria-logo.png)
 
 Site profissional para apresentação dos serviços de **Anderson Carpintaria e Reformas**, com foco em carpintaria, estruturas em madeira, telhados, decks, pergolados, piso vinílico, alvenaria e reformas em geral.
 

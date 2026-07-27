@@ -49,18 +49,54 @@ export const heroButtons = [
 ]
 
 export const serviceItems = [
-  'Carpintaria',
-  'Estruturas em madeira',
-  'Decks',
-  'Pergolados',
-  'Telhados e coberturas',
-  'Portas e aberturas',
-  'Piso vinílico click',
-  'Alvenaria',
-  'Reformas',
-  'Revestimentos',
-  'Lajes e vigamento',
-  'Caixaria e radier',
+  {
+    title: 'Carpintaria',
+    description: 'Serviços de madeira para estruturas, ajustes, montagens e acabamento em obras residenciais.',
+  },
+  {
+    title: 'Estruturas em madeira',
+    description: 'Execução e reforma de estruturas com atenção a apoio, alinhamento, encaixe e resistência.',
+  },
+  {
+    title: 'Decks',
+    description: 'Construção e reforma de decks de madeira, da base estrutural ao acabamento final.',
+  },
+  {
+    title: 'Pergolados',
+    description: 'Montagem de pergolados de madeira para áreas externas, com estrutura firme e acabamento limpo.',
+  },
+  {
+    title: 'Telhados e coberturas',
+    description: 'Construção e reforma de madeiramento, telhados e coberturas, incluindo estruturas aparentes.',
+  },
+  {
+    title: 'Portas e aberturas',
+    description: 'Instalação, ajuste e acabamento de portas e outras aberturas conforme a necessidade da obra.',
+  },
+  {
+    title: 'Piso vinílico click',
+    description: 'Instalação de piso vinílico click com preparação, alinhamento e acabamento.',
+  },
+  {
+    title: 'Alvenaria',
+    description: 'Execução e reparos em paredes, bases, concreto e outras etapas de construção.',
+  },
+  {
+    title: 'Reformas',
+    description: 'Reformas residenciais com organização das etapas, correções e acabamento.',
+  },
+  {
+    title: 'Revestimentos',
+    description: 'Assentamento de revestimentos cerâmicos com paginação, alinhamento e acabamento.',
+  },
+  {
+    title: 'Lajes e vigamento',
+    description: 'Execução de lajes, vigamento e preparação de passagens com atenção à estrutura.',
+  },
+  {
+    title: 'Caixaria e radier',
+    description: 'Montagem de formas, caixaria e radier com travamento e preparação adequada da base.',
+  },
 ]
 
 export const fixedGallerySections = {
@@ -78,28 +114,48 @@ export const fixedGallerySections = {
         title: 'Estrutural e acabamento',
         description:
           'Execução firme com atenção ao encaixe, ao esquadro e ao acabamento que valoriza a peça pronta.',
-        images: [carrossel1_1, carrossel1_2, carrossel1_3, carrossel1_4, carrossel1_5],
+        images: [
+          { src: carrossel1_1, alt: 'Estrutural e acabamento em madeira — etapa 1' },
+          { src: carrossel1_2, alt: 'Estrutural e acabamento em madeira — etapa 2' },
+          { src: carrossel1_3, alt: 'Estrutural e acabamento em madeira — etapa 3' },
+          { src: carrossel1_4, alt: 'Estrutural e acabamento em madeira — etapa 4' },
+          { src: carrossel1_5, alt: 'Estrutural e acabamento em madeira — etapa 5' },
+        ],
       },
       {
         id: 'carp-2',
         title: 'Linhas principais, cumeeira e telhados em 3 águas',
         description:
           'Montagens conduzidas com lógica estrutural para garantir apoio correto, alinhamento e leitura limpa da cobertura.',
-        images: [carrossel2_1, carrossel2_2, carrossel2_3, carrossel2_4, carrossel2_5],
+        images: [
+          { src: carrossel2_1, alt: 'Estrutura de telhado em três águas — etapa 1' },
+          { src: carrossel2_2, alt: 'Estrutura de telhado em três águas — etapa 2' },
+          { src: carrossel2_3, alt: 'Estrutura de telhado em três águas — etapa 3' },
+          { src: carrossel2_4, alt: 'Estrutura de telhado em três águas — etapa 4' },
+          { src: carrossel2_5, alt: 'Estrutura de telhado em três águas — etapa 5' },
+        ],
       },
       {
         id: 'carp-3',
         title: 'Deck em estrutura e peça finalizada',
         description:
           'Da base ao resultado pronto, o trabalho prioriza resistência, paginação coerente e acabamento valorizado.',
-        images: [deckPronto, estruturaDeck],
+        images: [
+          { src: deckPronto, alt: 'Deck de madeira finalizado' },
+          { src: estruturaDeck, alt: 'Estrutura de base para deck de madeira' },
+        ],
       },
       {
         id: 'carp-4',
         title: 'Madeiramento à vista, piso click e cobertura',
         description:
           'Soluções de acabamento e cobertura integradas para entregar leitura estética forte e execução bem resolvida.',
-        images: [madeiramento1, telhado, pisoVinilico, madeiramento2],
+        images: [
+          { src: madeiramento1, alt: 'Madeiramento aparente em estrutura de madeira' },
+          { src: telhado, alt: 'Estrutura de madeira e cobertura de telhado' },
+          { src: pisoVinilico, alt: 'Instalação de piso vinílico click' },
+          { src: madeiramento2, alt: 'Madeiramento aparente em estrutura de madeira' },
+        ],
       },
     ],
   },
@@ -117,28 +173,51 @@ export const fixedGallerySections = {
         title: 'Revestimento cerâmico',
         description:
           'Assentamento com atenção ao alinhamento visual, paginação e acabamento para valorizar o ambiente pronto.',
-        images: [revestimento1, revestimento2, revestimento4, revestimento5, revestimento6],
+        images: [
+          { src: revestimento1, alt: 'Assentamento de revestimento cerâmico — etapa 1' },
+          { src: revestimento2, alt: 'Assentamento de revestimento cerâmico — etapa 2' },
+          { src: revestimento4, alt: 'Assentamento de revestimento cerâmico — etapa 4' },
+          { src: revestimento5, alt: 'Assentamento de revestimento cerâmico — etapa 5' },
+          { src: revestimento6, alt: 'Assentamento de revestimento cerâmico — etapa 6' },
+        ],
       },
       {
         id: 'alv-2',
         title: 'Lajes, vigamento e tubulação',
         description:
           'Execução com leitura estrutural, preparo de base e organização das passagens para evitar retrabalho.',
-        images: [laje1, laje2, laje3, laje4, laje5],
+        images: [
+          { src: laje1, alt: 'Execução de laje e vigamento — etapa 1' },
+          { src: laje2, alt: 'Execução de laje e vigamento — etapa 2' },
+          { src: laje3, alt: 'Execução de laje e vigamento — etapa 3' },
+          { src: laje4, alt: 'Execução de laje e vigamento — etapa 4' },
+          { src: laje5, alt: 'Execução de laje e vigamento — etapa 5' },
+        ],
       },
       {
         id: 'alv-3',
         title: 'Piscina, concreto armado e acabamento',
         description:
           'Etapas executadas com firmeza desde a estrutura até o acabamento, respeitando forma, volume e durabilidade.',
-        images: [piscina1, piscina2, piscina3, piscina4],
+        images: [
+          { src: piscina1, alt: 'Construção de piscina em concreto — etapa 1' },
+          { src: piscina2, alt: 'Construção de piscina em concreto — etapa 2' },
+          { src: piscina3, alt: 'Construção de piscina em concreto — etapa 3' },
+          { src: piscina4, alt: 'Construção de piscina em concreto — etapa 4' },
+        ],
       },
       {
         id: 'alv-4',
         title: 'Estrutura, caixaria e radier',
         description:
           'Serviços preparados com base correta, travamento e controle visual para sustentar uma obra confiável.',
-        images: [alvenaria1, alvenaria2, alvenaria3, alvenaria4, alvenaria5],
+        images: [
+          { src: alvenaria1, alt: 'Estrutura, caixaria e radier — etapa 1' },
+          { src: alvenaria2, alt: 'Estrutura, caixaria e radier — etapa 2' },
+          { src: alvenaria3, alt: 'Estrutura, caixaria e radier — etapa 3' },
+          { src: alvenaria4, alt: 'Estrutura, caixaria e radier — etapa 4' },
+          { src: alvenaria5, alt: 'Estrutura, caixaria e radier — etapa 5' },
+        ],
       },
     ],
   },
@@ -146,12 +225,12 @@ export const fixedGallerySections = {
 
 export const defaultPublishedContent = {
   hero: {
-    title: 'Anderson Carpintaria e Reformas',
-    headline: 'Carpintaria e Reformas com Estrutura, Acabamento e Compromisso Profissional',
+    title: 'Carpintaria e Reformas em São José e Grande Florianópolis',
+    headline: 'Telhados, decks, pergolados, estruturas de madeira, alvenaria e reformas com acabamento e compromisso profissional.',
     support: '',
     whatsapp: '48991691906',
     email: 'anderson090485@gmail.com',
-    region: 'Florianópolis e regiões',
+    region: 'São José e Grande Florianópolis',
   },
   introVideo: {
     media: videoPortas,

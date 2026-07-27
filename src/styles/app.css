@@ -467,11 +467,31 @@
 
 .section-copy h2,
 .video-card__copy h3,
-.gallery-carousel h3,
+.carousel__description,
 .service-card h3,
 .review-form h3,
 .password-modal__content h3 {
   letter-spacing: -0.02em;
+}
+
+.carousel__title {
+  margin: 1em 0;
+  color: var(--accent-strong);
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
+  font-size: 0.74rem;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.section-copy .carousel__description {
+  margin: 1em 0;
+  color: var(--text);
+  font-family: 'Space Grotesk', 'Manrope', sans-serif;
+  font-size: 1.17em;
+  font-weight: 700;
+  line-height: 1.5;
 }
 
 .section-copy p,
@@ -512,6 +532,15 @@
   border-radius: 50%;
   background: linear-gradient(135deg, #5aafff, #8ae0ff);
   box-shadow: 0 0 20px rgba(90, 175, 255, 0.6);
+}
+
+.service-card__description {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 
 .gallery-stack {
@@ -1321,7 +1350,7 @@ textarea {
     border-radius: 22px;
   }
 
-  .gallery-carousel h3 {
+  .section-copy .carousel__description {
     font-size: 1rem;
     line-height: 1.48;
   }
