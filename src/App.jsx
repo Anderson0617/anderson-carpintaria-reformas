@@ -621,14 +621,6 @@ function App() {
     return fallbackMessage
   }
 
-  function trackWhatsappConversion() {
-    if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
-      window.gtag('event', 'conversion', {
-        send_to: 'AW-18170629485/5-fKCOXy_q8cEO2at9hD',
-      })
-    }
-  }
-
   async function refreshPublicReviews({ silent = false } = {}) {
     try {
       const nextReviews = await listPublicReviews()
@@ -1330,7 +1322,6 @@ function App() {
       label: 'Falar no WhatsApp',
       href: WHATSAPP_CATALOG_LINK,
       variant: 'secondary',
-      onClick: trackWhatsappConversion,
     },
   ]
 
@@ -1571,7 +1562,6 @@ function App() {
                   href={WHATSAPP_CATALOG_LINK}
                   target="_blank"
                   rel="noreferrer"
-                  onClick={trackWhatsappConversion}
                 >
                   WhatsApp: {content.hero.whatsapp}
                 </a>
