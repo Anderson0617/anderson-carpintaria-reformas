@@ -6,6 +6,7 @@ import {
   SITE_PASSWORD,
   defaultDraftContent,
   defaultPublishedContent,
+  defaultPublishedReviews,
   defaultReviews,
   fixedGallerySections,
   serviceItems,
@@ -49,9 +50,11 @@ import {
   saveGalleryDraftFile,
 } from './lib/galleryDraftStore'
 
-const initialState = {
-  draftContent: defaultDraftContent,
-  publishedContent: defaultPublishedContent,
+function createDefaultSiteState() {
+  return {
+    draftContent: structuredClone(defaultDraftContent),
+    publishedContent: structuredClone(defaultPublishedContent),
+  }
 }
 
 const VISIT_SESSION_KEY = 'anderson-carpintaria-visit-registered'
@@ -273,8 +276,8 @@ function ExtraGallery({ title, photos }) {
   )
 }
 
-function loadInitialSiteState() {
-  const storedState = loadState(initialState)
+function loadStoredSiteState() {
+  const storedState = loadState(createDefaultSiteState())
 
   return {
     ...storedState,
@@ -289,15 +292,10 @@ function loadInitialSiteState() {
 }
 
 function App() {
-  const [siteState, setSiteState] = useState(() => loadInitialSiteState())
-  const [reviews, setReviews] = useState(() =>
-    isSupabaseConfigured || !import.meta.env.DEV ? [] : defaultReviews,
-  )
-  const [publicReviews, setPublicReviews] = useState(() =>
-    isSupabaseConfigured || !import.meta.env.DEV
-      ? []
-      : defaultReviews.filter((review) => review.status === 'approved'),
-  )
+  const [siteState, setSiteState] = useState(createDefaultSiteState)
+  const [storageReady, setStorageReady] = useState(false)
+  const [reviews, setReviews] = useState(() => [])
+  const [publicReviews, setPublicReviews] = useState(() => defaultPublishedReviews)
   const [githubPublicReviews, setGithubPublicReviews] = useState(() => [])
   const [adminOpen, setAdminOpen] = useState(false)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
@@ -333,8 +331,19 @@ function App() {
   const publishTimeoutRef = useRef(null)
 
   useEffect(() => {
-    saveState(siteState)
-  }, [siteState])
+    setSiteState(loadStoredSiteState())
+    setStorageReady(true)
+
+    if (!isSupabaseConfigured && import.meta.env.DEV) {
+      setReviews(defaultReviews)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (storageReady) {
+      saveState(siteState)
+    }
+  }, [siteState, storageReady])
 
   useEffect(() => () => window.clearTimeout(publishTimeoutRef.current), [])
 
