@@ -41,7 +41,7 @@ import alvenaria3 from '../../assets/alvenaria-3.jpeg'
 import alvenaria4 from '../../assets/alvenaria-4.jpeg'
 import alvenaria5 from '../../assets/alvenaria-5.jpeg'
 
-const apresentacao = `${import.meta.env.BASE_URL}anderson-apresentacao.jpeg`
+const apresentacao = `${import.meta.env.BASE_URL}anderson-apresentacao-otimizada.jpeg`
 
 export const SITE_PASSWORD = '2805'
 

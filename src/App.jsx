@@ -1490,8 +1490,8 @@ function App() {
                     fallbackSrc={mediaFallbacks.presentationPhoto}
                     alt="Anderson em apresentação profissional"
                     fetchPriority="high"
-                    width={1932}
-                    height={2576}
+                    width={768}
+                    height={1024}
                   />
                 </div>
                 <div className="video-card panel">
