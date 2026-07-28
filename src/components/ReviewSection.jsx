@@ -112,6 +112,33 @@ function ReviewSection({ intro, publicReviews, onCreateReview }) {
               </article>
             )}
           </div>
+
+          <aside className="review-form panel google-profile-callout" aria-labelledby="google-profile-heading">
+            <h3 id="google-profile-heading">Conheça nossa empresa no Google</h3>
+            <p>Veja nosso perfil, fotos de trabalhos realizados, serviços e avaliações de clientes.</p>
+            <p>Já foi nosso cliente? Compartilhe sua experiência e ajude outras pessoas a conhecerem nosso trabalho.</p>
+
+            <div className="hero__actions">
+              <a
+                className="button button--ghost"
+                href="https://www.google.com/maps/place/Anderson+Carpintaria+e+Reformas/data=!4m2!3m1!1s0x0:0x9f53f52efff8bb61?hl=pt-BR"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Ver perfil no Google (abre em nova aba)"
+              >
+                Ver perfil no Google
+              </a>
+              <a
+                className="button button--ghost"
+                href="https://g.page/r/CWG7-P8u9VOfEAI/review"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Avaliar no Google (abre em nova aba)"
+              >
+                Avaliar no Google
+              </a>
+            </div>
+          </aside>
         </div>
       </div>
     </section>
