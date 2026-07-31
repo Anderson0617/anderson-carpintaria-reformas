@@ -1,5 +1,6 @@
 const LOCATION_CACHE_KEY = 'anderson-carpintaria-location-cache'
 const LOCATION_SESSION_ID_KEY = 'anderson-carpintaria-session-id'
+let locationUnavailableForPageLoad = false
 
 function normalizeString(value) {
   return typeof value === 'string' && value.trim() ? value.trim() : null
@@ -55,6 +56,10 @@ export async function getApproxLocation() {
     }
   }
 
+  if (locationUnavailableForPageLoad) {
+    return null
+  }
+
   const controller = new AbortController()
   const timeoutId = window.setTimeout(() => controller.abort(), 4500)
 
@@ -65,6 +70,11 @@ export async function getApproxLocation() {
         Accept: 'application/json',
       },
     })
+
+    if (response.status === 429) {
+      locationUnavailableForPageLoad = true
+      return null
+    }
 
     if (!response.ok) {
       throw new Error(`Falha ao obter região aproximada: ${response.status}`)
