@@ -8,7 +8,7 @@ const projectRoot = path.resolve(fileURLToPath(new URL('..', import.meta.url)))
 const distPath = path.join(projectRoot, 'dist')
 const distIndexPath = path.join(projectRoot, 'dist', 'index.html')
 const manifestPath = path.join(distPath, '.vite', 'manifest.json')
-const base = '/anderson-carpintaria-reformas/'
+const base = '/'
 
 function normalizeManifestPath(file) {
   return file.replaceAll('\\', '/').replace(/^\/+/, '')

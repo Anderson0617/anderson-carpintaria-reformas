@@ -34,30 +34,35 @@ function normalizeOrigin(value) {
   }
 }
 
+function getAllowedOrigins(env) {
+  return String(env.ALLOWED_ORIGIN || '')
+    .split(',')
+    .map(normalizeOrigin)
+    .filter(Boolean)
+}
+
+function isAllowedOrigin(request, env) {
+  const origin = normalizeOrigin(request.headers.get('Origin'))
+  return Boolean(origin && getAllowedOrigins(env).includes(origin))
+}
+
 function getCorsHeaders(request, env) {
-  const origin = request.headers.get('Origin') || ''
-  const allowedOrigin = normalizeOrigin(env.ALLOWED_ORIGIN)
-
-  if (!allowedOrigin || origin === allowedOrigin) {
-    return {
-      'Access-Control-Allow-Origin': allowedOrigin || origin || '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    }
-  }
-
-  return {
-    'Access-Control-Allow-Origin': 'null',
+  const origin = normalizeOrigin(request.headers.get('Origin'))
+  const headers = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
+    Vary: 'Origin',
   }
+
+  if (isAllowedOrigin(request, env)) {
+    headers['Access-Control-Allow-Origin'] = origin
+  }
+
+  return headers
 }
 
 function assertAllowedOrigin(request, env) {
-  const allowedOrigin = normalizeOrigin(env.ALLOWED_ORIGIN)
-  const origin = request.headers.get('Origin') || ''
-
-  if (allowedOrigin && origin !== allowedOrigin) {
+  if (!isAllowedOrigin(request, env)) {
     throw new Error('Origin não permitida.')
   }
 }
@@ -592,6 +597,13 @@ export default {
     const corsHeaders = getCorsHeaders(request, env)
 
     if (request.method === 'OPTIONS') {
+      if (!isAllowedOrigin(request, env)) {
+        return new Response(null, {
+          status: 403,
+          headers: corsHeaders,
+        })
+      }
+
       return new Response(null, {
         status: 204,
         headers: corsHeaders,
@@ -606,6 +618,18 @@ export default {
           timestamp: new Date().toISOString(),
         },
         405,
+        corsHeaders,
+      )
+    }
+
+    if (!isAllowedOrigin(request, env)) {
+      return json(
+        {
+          ok: false,
+          message: 'Origin não permitida.',
+          timestamp: new Date().toISOString(),
+        },
+        403,
         corsHeaders,
       )
     }
